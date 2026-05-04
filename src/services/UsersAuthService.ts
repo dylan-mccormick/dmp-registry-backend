@@ -32,17 +32,17 @@ export interface UsersAuthService {
      * @param username the username to create
      * @param email the email to set
      * @param password the password to set
-     * @returns A promise that resolves to the created User object.
+     * @returns A promise that resolves to the created user's json web token.
      */
-    registerUser(username: string, email: string, password: string): Promise<User>;
+    registerUser(username: string, email: string, password: string): Promise<string>;
 
     /**
      * Logs in a user to the system.
      * @param username the username to log into
      * @param password the password that goes with the username
-     * @returns A promise that resolves to the logged-in User object.
+     * @returns A promise that resolves to the logged-in user's json web token.
      */
-    loginUser(username: string, password: string): Promise<User>;
+    loginUser(username: string, password: string): Promise<string>;
 
     /**
      * Logs out a user from the system.

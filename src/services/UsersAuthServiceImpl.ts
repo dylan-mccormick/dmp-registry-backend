@@ -1,0 +1,87 @@
+/**
+ * UsersAuthServiceImpl.ts
+ * Implementation of the UsersAuthService interface.
+ */
+
+import axios, { AxiosInstance } from "axios";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+import { UsersAuthService } from "./UsersAuthService";
+import { User } from "../model/User";
+import { UnauthorizedError } from "../error/UnauthorizedError";
+import { BadRequestError } from "../error/BadRequestError";
+import { ForbiddenError } from "../error/ForbiddenError";
+
+export class UsersAuthServiceImpl implements UsersAuthService {
+
+    readonly #dbApi: AxiosInstance;
+
+    /**
+     * Creates an instance of UsersAuthServiceImpl.
+     * @param dbApi the database Axios Instance to query
+     */
+    constructor(dbApi: AxiosInstance) {
+        this.#dbApi = dbApi;
+    }
+
+    private async generateJwt(user: User): Promise<string> {
+        const payload = {
+            id: user.id,
+            username: user.username,
+            token_version: user.tokenVersion
+        };
+
+        return jwt.sign(payload, process.env.JWT_SECRET as string, { expiresIn: "2d" });
+    }
+
+    public async getUsers(): Promise<User[]> {
+        const response = await this.#dbApi.get("/users");
+        return response.data.map((userObj: any) => User.fromObject(userObj));
+    }
+
+    public async getUserById(id: number): Promise<User> {
+        const response = await this.#dbApi.get(`/users/${id}`);
+        return User.fromObject(response.data);
+    }
+
+    public async deleteUser(user: User): Promise<void> {
+        await this.#dbApi.delete(`/users/${user.id}`);
+        return;
+    }
+
+    public async registerUser(username: string, email: string, password: string): Promise<string> {
+        const password_hash = await bcrypt.hash(password, 10);
+        try {
+            const response = await this.#dbApi.post("/users", { username, email, password_hash });
+            return await this.generateJwt(User.fromObject(response.data));
+        } catch (error: any) {
+            if (axios.isAxiosError(error) && error.response?.data?.code == "USERNAME_ALREADY_IN_USE") {
+                throw new BadRequestError("Username already in use");
+            }
+            throw error;
+        }
+    }
+
+    public async loginUser(username: string, password: string): Promise<string> {
+        const targetUser = await this.#dbApi.get(`/users?username=${encodeURIComponent(username)}`);
+        if (targetUser.status !== 200 || targetUser.data.length === 0) {
+            throw new UnauthorizedError("Invalid username or password");
+        }
+
+        const userObj = targetUser.data;
+        const passwordHash = userObj.password_hash;
+        const passwordMatch = await bcrypt.compare(password, passwordHash);
+        if (!passwordMatch) {
+            throw new ForbiddenError("Invalid username or password");
+        }
+
+        return await this.generateJwt(User.fromObject(userObj));
+    }
+
+    public async logoutUser(user: User): Promise<void> {
+        // increment token version to invalidate existing tokens
+        await this.#dbApi.put(`/users/${user.id}`, {  token_version: user.tokenVersion + 1 });
+        return;
+    }
+
+}
