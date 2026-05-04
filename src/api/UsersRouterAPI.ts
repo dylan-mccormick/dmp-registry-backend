@@ -1,16 +1,23 @@
 import { NextFunction, Request, Response, Router } from "express";
 import { UsersAuthService } from "../services/UsersAuthService";
 import { asyncHandler } from "../Utils";
-import { AuthedRequest } from "./Authenticator";
+import { AuthedRequest, Authenticator } from "./Authenticator";
 import { User } from "../model/User";
+import { UserPermissions } from "../model/UserPermissions";
+import { UsersRoleService } from "../services/UsersRoleService";
+import { UserIdPermissionQuerySchema, UserIdQuerySchema } from "./schema/UserQuerySchema";
 
 export class UsersRouterAPI {
     readonly #usersAuthService: UsersAuthService;
+    readonly #usersRoleService: UsersRoleService;
     readonly #authenticate: (req: Request, res: Response, next: NextFunction) => void;
+    readonly #requiredPermissions: (permissions: UserPermissions[]) => (req: Request, res: Response, next: NextFunction) => void;
 
-    constructor(usersAuthService: UsersAuthService, authenticate: (req: Request, res: Response, next: NextFunction) => void) {
+    constructor(usersAuthService: UsersAuthService, usersRoleService: UsersRoleService, authenticator: Authenticator) {
         this.#usersAuthService = usersAuthService;
-        this.#authenticate = authenticate;
+        this.#usersRoleService = usersRoleService;
+        this.#authenticate = authenticator.authenticate.bind(authenticator);
+        this.#requiredPermissions = authenticator.requiredPermissions.bind(authenticator);
     }
 
     public registerRoutes(): Router {
@@ -45,12 +52,55 @@ export class UsersRouterAPI {
         }));
 
         // list users
-        router.get("/", this.#authenticate, asyncHandler(async (req: AuthedRequest, res: Response) => {
-            console.log("User permissions:", req.userPermissions);
-            console.log("User making request:", req.user);
-            console.log("Received request to get all users");
+        router.get("/", this.#authenticate, this.#requiredPermissions([UserPermissions.MANAGE_USERS]), asyncHandler(async (req: AuthedRequest, res: Response) => {
             const users = await this.#usersAuthService.getUsers();
             res.status(200).json(users.map(user => user.toDictionary()));
+        }));
+
+        // get user-permissions
+        router.get("/permissions", this.#authenticate, asyncHandler(async (req: AuthedRequest, res: Response) => {
+            const user = req.user as User;
+            const permissions = await this.#usersRoleService.getPermissionsOnUser(user);
+            res.status(200).json(permissions.map(permission => permission.toString()));
+        }));
+
+        // get all user-permissions
+        router.get("/permissions/all", this.#authenticate, this.#requiredPermissions([UserPermissions.MANAGE_USERS]), asyncHandler(async (req: AuthedRequest, res: Response) => {
+            const permissions = await this.#usersRoleService.getPermissions();
+            res.status(200).json(permissions.map(permission => permission.toString()));
+        }));
+
+        // get permission for user
+        router.get("/:userId/permissions", this.#authenticate, this.#requiredPermissions([UserPermissions.MANAGE_USERS]), asyncHandler(async (req: AuthedRequest, res: Response) => {
+            const { userId } = UserIdQuerySchema.parse(req.params);
+            const user = await this.#usersAuthService.getUserById(userId);
+            if (!user) return res.status(404).json({ error: "User not found" });
+            const permissions = await this.#usersRoleService.getPermissionsOnUser(user);
+            res.status(200).json(permissions.map(permission => permission.toString()));
+        }));
+
+        // assign permission to user
+        router.post("/:userId/permissions/:permission", this.#authenticate, this.#requiredPermissions([UserPermissions.MANAGE_USERS]), asyncHandler(async (req: AuthedRequest, res: Response) => {
+            const { userId, permission } = UserIdPermissionQuerySchema.parse(req.params);
+            const user = await this.#usersAuthService.getUserById(userId);
+            const permEnum = UserPermissions[permission as keyof typeof UserPermissions];
+            if (!user) return res.status(404).json({ error: "User not found" });
+            if (!permEnum) return res.status(400).json({ error: "Invalid permission" });
+
+            await this.#usersRoleService.assignPermissionToUser(user, permEnum);
+            res.status(200).json({ message: "Permission assigned successfully" });
+        }));
+
+        // remove permission from user
+        router.delete("/:userId/permissions/:permission", this.#authenticate, this.#requiredPermissions([UserPermissions.MANAGE_USERS]), asyncHandler(async (req: AuthedRequest, res: Response) => {
+            const { userId, permission } = UserIdPermissionQuerySchema.parse(req.params);
+            const user = await this.#usersAuthService.getUserById(userId);
+            const permEnum = UserPermissions[permission as keyof typeof UserPermissions];
+            if (!user) return res.status(404).json({ error: "User not found" });
+            if (!permEnum) return res.status(400).json({ error: "Invalid permission" });
+
+            await this.#usersRoleService.removePermissionFromUser(user, permEnum);
+            res.status(200).json({ message: "Permission removed successfully" });
         }));
 
         return router;

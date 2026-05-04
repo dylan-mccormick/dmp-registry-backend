@@ -63,11 +63,28 @@ export class Authenticator {
             (req as AuthedRequest).userPermissions = permissions;
             (req as AuthedRequest).user = user;
         } catch (err) {
+            console.error("Error verifying token:", err);
             return res.status(401).json({ error: "Unauthorized: Invalid token" });
         }
 
         next();
 
     };
+
+    public requiredPermissions(permissions: UserPermissions[]): (req: Request, res: Response, next: NextFunction) => void {
+        return (req: Request, res: Response, next: NextFunction) => {
+            const authedReq = req as AuthedRequest;
+            if (!authedReq.user) {
+                return res.status(401).json({ error: "Unauthorized: No user authenticated" });
+            }
+
+            const userPermissions = authedReq.userPermissions || [];
+            const hasRequiredPermissions = permissions.every(permission => userPermissions.includes(permission));
+
+            if (!hasRequiredPermissions) {
+                return res.status(403).json({ error: "Forbidden: Insufficient permissions" });
+            }
+        }
+    }
 
 }

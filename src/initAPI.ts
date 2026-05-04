@@ -50,7 +50,7 @@ export const initAPI = (usersAuthService: UsersAuthService, usersRoleService: Us
         app.use(limiter);
 
         // register routes
-        const usersRouterAPI = new UsersRouterAPI(usersAuthService, authenticator.authenticate.bind(authenticator));
+        const usersRouterAPI = new UsersRouterAPI(usersAuthService, usersRoleService, authenticator);
         const usersRouter = usersRouterAPI.registerRoutes();
 
         // start server
