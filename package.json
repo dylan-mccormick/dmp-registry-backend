@@ -16,6 +16,7 @@
   "main": "index.js",
   "scripts": {
     "start": "tsc; node dist/index.js",
+    "build": "tsc",
     "dev": "nodemon -e js,ts,env --watch 'src/' --exec 'tsc; node dist/index.js'"
   },
   "dependencies": {
