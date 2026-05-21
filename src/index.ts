@@ -13,7 +13,7 @@ const DEV_ENV = true;
 
 dotenv.config({ path: DEV_ENV ? '.env.dev' : '.env.prod' });
 
-initDB(process.env.DB_API_KEY as string, `http://localhost:${process.env.DB_PORT}/api/v1`).then(async dbApi => {
+initDB(process.env.DB_API_KEY as string, `http://${process.env.DB_HOST}:${process.env.DB_PORT}/api/v1`).then(async dbApi => {
     console.log("Database initialized successfully.");
 
     const usersManagementService: UsersManagementService = new UsersManagementServiceImpl(dbApi);
