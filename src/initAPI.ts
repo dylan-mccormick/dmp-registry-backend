@@ -33,7 +33,8 @@ export const initAPI = (usersAuthService: UsersAuthService, usersRoleService: Us
 
                 const allowed = [
                     /^https:\/\/.*\.mnmzc\.us\.to$/,
-                    /^http:\/\/192\.168\.\d+\.\d+:5173$/
+                    /^http:\/\/localhost(:\d+)?$/,
+                    /^http:\/\/192\.168\.\d+\.\d+(:\d+)?$/
                 ];
 
                 if (allowed.some(pattern => pattern.test(origin))) {
