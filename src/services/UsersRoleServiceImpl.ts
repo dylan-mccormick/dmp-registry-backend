@@ -26,7 +26,7 @@ export class UsersRoleServiceImpl implements UsersRoleService {
         if (objectFromName.status !== 200 || objectFromName.data.length === 0) {
             throw new Error(`Permission ${permission} not found`);
         }
-        return objectFromName.data[0].id;
+        return objectFromName.data.id;
     };
 
     /**
@@ -51,7 +51,7 @@ export class UsersRoleServiceImpl implements UsersRoleService {
 
     public async assignPermissionToUser(user: any, permission: UserPermissions): Promise<void> {
         const permissionId = await this.getIdFromPermission(permission);
-        await this.#dbApi.post(`/users/${user.id}/permissions`, { permission_id: permissionId });
+        await this.#dbApi.post(`/users/${user.id}/permissions/${permissionId}`);
         return;
     }
 

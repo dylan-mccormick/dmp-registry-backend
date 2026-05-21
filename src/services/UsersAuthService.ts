@@ -37,6 +37,13 @@ export interface UsersAuthService {
     registerUser(username: string, email: string, password: string): Promise<string>;
 
     /**
+     * Verifies whether a given password matches the user's stored password.
+     * @param user the user to verify
+     * @param password the password they entered
+     */
+    verifyPassword(user: User, password: string): Promise<boolean>;
+
+    /**
      * Logs in a user to the system.
      * @param username the username to log into
      * @param password the password that goes with the username

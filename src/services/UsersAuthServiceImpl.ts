@@ -11,17 +11,21 @@ import { User } from "../model/User";
 import { UnauthorizedError } from "../error/UnauthorizedError";
 import { BadRequestError } from "../error/BadRequestError";
 import { ForbiddenError } from "../error/ForbiddenError";
+import { UsersManagementService } from "./UsersManagementService";
 
 export class UsersAuthServiceImpl implements UsersAuthService {
 
     readonly #dbApi: AxiosInstance;
+    readonly #usersManagementService: UsersManagementService;
 
     /**
      * Creates an instance of UsersAuthServiceImpl.
      * @param dbApi the database Axios Instance to query
+     * @param usersManagementService the users management service
      */
-    constructor(dbApi: AxiosInstance) {
+    constructor(dbApi: AxiosInstance, usersManagementService: UsersManagementService) {
         this.#dbApi = dbApi;
+        this.#usersManagementService = usersManagementService;
     }
 
     private async generateJwt(user: User): Promise<string> {
@@ -62,6 +66,12 @@ export class UsersAuthServiceImpl implements UsersAuthService {
         }
     }
 
+    public async verifyPassword(user: User, password: string): Promise<boolean> {
+        const userRawDetails = await this.#dbApi.get(`/users/${user.id}`);
+        const passwordHash = userRawDetails.data.password_hash;
+        return await bcrypt.compare(password, passwordHash);
+    }
+
     public async loginUser(username: string, password: string): Promise<string> {
         const targetUser = await this.#dbApi.get(`/users?username=${encodeURIComponent(username)}`);
         if (targetUser.status !== 200 || targetUser.data.length === 0) {
@@ -80,7 +90,7 @@ export class UsersAuthServiceImpl implements UsersAuthService {
 
     public async logoutUser(user: User): Promise<void> {
         // increment token version to invalidate existing tokens
-        await this.#dbApi.put(`/users/${user.id}`, {  token_version: user.tokenVersion + 1 });
+        await this.#usersManagementService.setTokenVersion(user, user.tokenVersion + 1);
         return;
     }
 

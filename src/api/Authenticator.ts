@@ -84,6 +84,8 @@ export class Authenticator {
             if (!hasRequiredPermissions) {
                 return res.status(403).json({ error: "Forbidden: Insufficient permissions" });
             }
+
+            next();
         }
     }
 
