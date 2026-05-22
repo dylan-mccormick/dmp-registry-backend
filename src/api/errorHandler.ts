@@ -5,9 +5,10 @@ import { WebRequestError } from "../error/WebRequestError";
 const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction) => {
     // ZodErrors: Bad Request
     if (err instanceof ZodError) {
-        console.warn("Validation error in API handler:", err);
         return res.status(400).json({ error: "Invalid request data", details: err.flatten() });
     }
+
+    console.warn("A handled error has occured in the API handler:", err);
 
     // UnauthorizedError: Just return the error message without exposing internal details
     if (err instanceof WebRequestError) {
