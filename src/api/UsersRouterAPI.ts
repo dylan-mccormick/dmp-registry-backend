@@ -29,7 +29,9 @@ export class UsersRouterAPI {
 
         // register
         router.post("/register", asyncHandler(async (req: Request, res: Response) => {
+            console.log(req.body);
             const { username, email, password } = UserCreateQuerySchema.parse(req.body);
+            console.log(username, email, password);
             try {
                 const token = await this.#usersAuthService.registerUser(username, email, password);
 
