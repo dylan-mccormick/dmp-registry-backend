@@ -29,20 +29,18 @@ export class UsersRouterAPI {
 
         // register
         router.post("/register", asyncHandler(async (req: Request, res: Response) => {
-            console.log(req.body);
             const { username, email, password } = UserCreateQuerySchema.parse(req.body);
-            console.log(username, email, password);
             try {
                 const token = await this.#usersAuthService.registerUser(username, email, password);
 
                 res.cookie("token", token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax" });
                 res.status(201).json({ message: "User registered successfully" });
             } catch (error) {
-                console.error("Error during user registration:", error);
                 if (error instanceof AxiosError && error.response?.data?.code === "USERNAME_ALREADY_IN_USE") {
                     return res.status(400).json({ message: "Username already in use" });
                 }
-                return res.status(400).json({ message: "Failed to register user" });
+                console.error("Error during user registration:", error);
+                return res.status(500).json({ message: "Failed to register user" });
             }
         }));
 
@@ -53,6 +51,7 @@ export class UsersRouterAPI {
                 res.cookie("token", token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax" });
                 res.status(200).json({ message: "User logged in successfully" });
             } catch (error) {
+                console.error("Error during user login:", error);
                 return res.status(401).json({ message: "Invalid credentials" });
             }
         }));
