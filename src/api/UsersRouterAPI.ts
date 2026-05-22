@@ -122,9 +122,7 @@ export class UsersRouterAPI {
 
         // personal account deletion
         router.delete("/delete/me", this.#authenticate, asyncHandler(async (req: AuthedRequest, res: Response) => {
-            console.log(req.body);
             const { password } = UserPasswordOnlyQuerySchema.parse(req.body);
-            console.log(password)
 
             // verify password
             if (!(await this.#usersAuthService.verifyPassword(req.user as User, password))) {
