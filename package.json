@@ -15,18 +15,33 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "tsc; node dist/index.js",
+    "build": "tsc",
+    "dev": "nodemon -e js,ts,env --watch 'src/' --exec 'tsc; node dist/index.js'"
   },
   "dependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^25.6.0",
     "axios": "^1.16.0",
+    "bcrypt": "^6.0.0",
     "body-parser": "^2.2.2",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-rate-limit": "^8.4.1",
-    "helmet": "^8.1.0"
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.10.1",
+    "zod": "^4.4.2"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/morgan": "^1.9.10",
+    "nodemon": "^3.1.14",
+    "typescript": "^6.0.3"
   }
 }
