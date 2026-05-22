@@ -33,7 +33,7 @@ export class UsersRouterAPI {
             try {
                 const token = await this.#usersAuthService.registerUser(username, email, password);
 
-                res.cookie("token", token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax" });
+                res.cookie("token", token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax" });
                 res.status(201).json({ message: "User registered successfully" });
             } catch (error) {
                 if (error instanceof AxiosError && error.response?.data?.code === "USERNAME_ALREADY_IN_USE") {
@@ -47,7 +47,7 @@ export class UsersRouterAPI {
         router.post("/login", asyncHandler(async (req: Request, res: Response) => {
             try {
                 const token = await this.#usersAuthService.loginUser(req.body.username, req.body.password);
-                res.cookie("token", token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax" });
+                res.cookie("token", token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax" });
                 res.status(200).json({ message: "User logged in successfully" });
             } catch (error) {
                 return res.status(401).json({ message: "Invalid credentials" });
