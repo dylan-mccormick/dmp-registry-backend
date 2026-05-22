@@ -26,6 +26,8 @@ export const initAPI = (usersAuthService: UsersAuthService, usersRoleService: Us
         // init api services
         const authenticator = new Authenticator(usersAuthService, usersRoleService);
 
+        app.set('trust proxy', 1);
+
         // use modules
         app.use(cors({
             origin: (origin, callback) => {
