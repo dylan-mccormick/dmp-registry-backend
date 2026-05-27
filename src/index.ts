@@ -8,6 +8,8 @@ import { UsersManagementServiceImpl } from './services/UsersManagementServiceImp
 import { UsersManagementService } from './services/UsersManagementService';
 import { UsersAuthService } from './services/UsersAuthService';
 import { UsersRoleService } from './services/UsersRoleService';
+import { RegistryLifecycleServiceImpl } from './services/RegistryLifecycleServiceImpl';
+import { RegistryType } from './model/RegistryType';
 
 const DEV_ENV = true;
 
@@ -20,11 +22,20 @@ initDB(process.env.DB_API_KEY as string, `http://${process.env.DB_HOST}:${proces
     const usersAuthService: UsersAuthService = new UsersAuthServiceImpl(dbApi, usersManagementService);
     const usersRoleService: UsersRoleService = new UsersRoleServiceImpl(dbApi);
 
-    // await verifyUserPermissionsExist(dbApi);
-    // await verifyRegistryActorPermissionsExist(dbApi);
+    const registryLifecycleService = new RegistryLifecycleServiceImpl(dbApi);
+
+    await verifyUserPermissionsExist(dbApi);
+    await verifyRegistryActorPermissionsExist(dbApi);
 
     initAPI(usersAuthService, usersRoleService, usersManagementService).then(() => {
         console.log("API initialized successfully.");
+
+        // run dummy queries on registry lifecycle service to ensure it is working
+        registryLifecycleService.createRegistry("TestRegistry68", RegistryType.files).then(registry => {
+            console.log("Created registry:", registry.toString());
+        }).catch(err => {
+            console.error("Failed to create registry:", err);
+        });
     }).catch((err) => {
         console.error("Failed to initialize API:", err);
         process.exit(1);

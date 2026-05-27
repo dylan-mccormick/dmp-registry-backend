@@ -26,13 +26,13 @@ export const UserIdPermissionQuerySchema = z.object({
 });
 
 export const UserAdminUpdateQuerySchema = z.object({
-    username: z.string().min(1).max(255).optional(),
+    username: z.string().min(1).max(255).regex(/^\w+$/, { message: "Username must be alphanumeric and can include underscores" }).optional(),
     email: z.email().optional(),
     email_verified: z.boolean().optional()
 });
 
 export const UserPersonalUpdateQuerySchema = z.object({
-    username: z.string().min(1).max(255).optional(),
+    username: z.string().min(1).max(255).regex(/^\w+$/, { message: "Username must be alphanumeric and can include underscores" }).optional(),
     email: z.email().optional(),
-    password: z.string().min(8).max(255).optional()
+    password: z.string().min(8).max(255).regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, { message: "Password must be 8+ characters and include at least one uppercase letter, one lowercase letter, one number, and one special character" }).optional()
 });

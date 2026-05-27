@@ -4,9 +4,10 @@
  * Actor class would typically be a user, or an API agent that interacts with the registry.
  */
 
+import { ActorType } from "./ActorType";
+
 export abstract class Actor {
 
-    // todo: implement actor properties and methods
     constructor() {
 
     }

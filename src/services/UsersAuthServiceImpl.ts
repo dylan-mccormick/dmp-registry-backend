@@ -60,7 +60,7 @@ export class UsersAuthServiceImpl implements UsersAuthService {
             return await this.generateJwt(User.fromObject(response.data));
         } catch (error: any) {
             if (axios.isAxiosError(error) && error.response?.data?.code == "USERNAME_ALREADY_IN_USE") {
-                throw new BadRequestError("Username already in use");
+                throw new BadRequestError("Username already in use", "USERNAME_ALREADY_IN_USE");
             }
             throw error;
         }
