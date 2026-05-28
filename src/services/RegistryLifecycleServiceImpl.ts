@@ -10,8 +10,11 @@ import { Registry } from "../model/Registry";
 import { RegistryType } from "../model/RegistryType";
 import { RegistryLifecycleService } from "./RegistryLifecycleService";
 import { v4 } from "uuid";
+import { AxiosError } from "axios";
+import { WebRequestError } from "../error/WebRequestError";
+import { DatabaseError } from "../error/DatabaseError";
 
-export class RegistryLifecycleServiceImpl {
+export class RegistryLifecycleServiceImpl implements RegistryLifecycleService {
 
     readonly #dbApi: AxiosInstance;
 
@@ -38,7 +41,8 @@ export class RegistryLifecycleServiceImpl {
             if (err.response && err.response.status === 404) {
                 // No collision, proceed with creation
             } else {
-                throw err;
+                console.error("Unknown database API error. ", err);
+                throw new DatabaseError("Unknown error.");
             }
         });
 
@@ -59,28 +63,62 @@ export class RegistryLifecycleServiceImpl {
             if (err.response && err.response.status === 404) {
                 return null;
             }
-            throw err;
+            console.error("Unknown database API error. ", err);
+            throw new DatabaseError("Unknown error.");
         })
     }
 
     public async getRegistryById(id: number): Promise<Registry> {
-        return new Registry(1, "Placeholder", RegistryType.files, `/registries/${v4()}`, new Date()); // placeholder
+        return this.#dbApi.get(`/registry/${id}`).then(res => {
+            return Registry.fromObject(res.data);
+        }).catch(err => {
+            if (err.response && err.response.status === 404) {
+                throw new BadRequestError("Registry not found.");
+            }
+            console.error("Unknown database API error. ", err);
+            throw new DatabaseError("Unknown error.");
+        })
     }
 
     public async getRegistries(): Promise<Registry[]> {
-        return [];
+        return this.#dbApi.get('/registry').then(res => {
+            return res.data.map((registryData: any) => Registry.fromObject(registryData));
+        });
     }
 
     public async getRegistriesForUser(userId: number): Promise<Registry[]> {
-        return [];
+        return this.#dbApi.get(`/registry?id=${userId}`).then(res => {
+            return res.data.map((registryData: any) => Registry.fromObject(registryData));
+        });
     }
 
     public async changeRegistryName(registry: Registry, newName: string): Promise<Registry> {
-        return registry;
+        // Validate the name is unique, non-blank and less than 255 characters with no spaces or non-alphanumeric characters
+        if (!newName || newName.trim() === "" || newName.length >= 255 || /[^a-zA-Z0-9]/.test(newName)) {
+            throw new BadRequestError("Invalid registry name.");
+        }
+
+        return this.#dbApi.put(`/registry/${registry.id}`, { name: newName }).then(async () => {
+            return Registry.fromObject(await this.getRegistryById(registry.id));
+        }).catch(err => {
+            if (err instanceof AxiosError && err.response?.data?.code) {
+                if (err.response.data.code == "REGISTRY_NOT_FOUND") {
+                    throw new BadRequestError("Registry not found.");
+                } else if (err.response.data.code == "REGISTRY_ALREADY_EXISTS") {
+                    throw new BadRequestError("A registry with this name already exists.");
+                }
+            }
+            console.error("Unknown database API error. ", err);
+            throw new DatabaseError("Unknown error.");
+        })
     }
 
     public async deleteRegistry(registryId: number): Promise<void> {
-        return;
+        // Idempotent delete
+        this.#dbApi.delete(`/registry/${registryId}`).catch(err => {
+            console.error("Unknown database API error. ", err);
+            throw new DatabaseError("Unknown error.");
+        });
     }
 
 }

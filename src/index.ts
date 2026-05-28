@@ -27,15 +27,8 @@ initDB(process.env.DB_API_KEY as string, `http://${process.env.DB_HOST}:${proces
     await verifyUserPermissionsExist(dbApi);
     await verifyRegistryActorPermissionsExist(dbApi);
 
-    initAPI(usersAuthService, usersRoleService, usersManagementService).then(() => {
+    initAPI(usersAuthService, usersRoleService, usersManagementService).then(async () => {
         console.log("API initialized successfully.");
-
-        // run dummy queries on registry lifecycle service to ensure it is working
-        registryLifecycleService.createRegistry("TestRegistry68", RegistryType.files).then(registry => {
-            console.log("Created registry:", registry.toString());
-        }).catch(err => {
-            console.error("Failed to create registry:", err);
-        });
     }).catch((err) => {
         console.error("Failed to initialize API:", err);
         process.exit(1);
