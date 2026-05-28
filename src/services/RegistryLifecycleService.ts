@@ -6,6 +6,7 @@
 
 import { Registry } from "../model/Registry";
 import { RegistryType } from "../model/RegistryType";
+import { User } from "../model/User";
 
 export interface RegistryLifecycleService {
 
@@ -15,10 +16,11 @@ export interface RegistryLifecycleService {
      * - The name must not contain spaces or non-alphanumeric characters.
      * - The storage location is derived automatically and should not be provided by the caller.
      * @param name the name for the new registry
+     * @param creator the creator of the registry
      * @param type the type of the new registry
      * @return the created registry
      */
-    createRegistry(name: string, type: RegistryType): Promise<Registry>;
+    createRegistry(name: string, creator: User, type: RegistryType): Promise<Registry>;
 
     /**
      * Gets a registry by its id.

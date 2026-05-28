@@ -13,16 +13,21 @@ import { v4 } from "uuid";
 import { AxiosError } from "axios";
 import { WebRequestError } from "../error/WebRequestError";
 import { DatabaseError } from "../error/DatabaseError";
+import { RegistryActorRoleService } from "./RegistryActorRoleService";
+import { User } from "../model/User";
+import { ActorPermissions } from "../model/ActorPermissions";
 
 export class RegistryLifecycleServiceImpl implements RegistryLifecycleService {
 
     readonly #dbApi: AxiosInstance;
+    readonly #registryActorRoleService: RegistryActorRoleService;
 
-    constructor(dbApi: AxiosInstance) {
+    constructor(dbApi: AxiosInstance, registryActorRoleService: RegistryActorRoleService) {
         this.#dbApi = dbApi;
+        this.#registryActorRoleService = registryActorRoleService;
     }
 
-    public async createRegistry(name: string, type: RegistryType): Promise<Registry> {
+    public async createRegistry(name: string, creator: User, type: RegistryType): Promise<Registry> {
         // Validate the name is unique, non-blank and less than 255 characters with no spaces or non-alphanumeric characters
         if (!name || name.trim() === "" || name.length >= 255 || /[^a-zA-Z0-9]/.test(name)) {
             throw new BadRequestError("Invalid registry name.");
@@ -52,8 +57,16 @@ export class RegistryLifecycleServiceImpl implements RegistryLifecycleService {
             type,
             storage_location: storageLocation
         }).then(res => res.data)
+        const registry = Registry.fromObject(data);
 
-        return Registry.fromObject(data);
+        // give the user all actor permissions
+        this.#registryActorRoleService.grantUserRole(registry, creator, ActorPermissions.MANAGE_USERS);
+        this.#registryActorRoleService.grantUserRole(registry, creator, ActorPermissions.READ_AGENTS);
+        this.#registryActorRoleService.grantUserRole(registry, creator, ActorPermissions.WRITE_AGENTS);
+        this.#registryActorRoleService.grantUserRole(registry, creator, ActorPermissions.READ_REGISTRY);
+        this.#registryActorRoleService.grantUserRole(registry, creator, ActorPermissions.WRITE_REGISTRY);
+
+        return registry;
     }
 
     public async getRegistryByName(name: string): Promise<Registry | null> {
