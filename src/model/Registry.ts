@@ -11,7 +11,8 @@ const RegistryFromObjectSchema = z.object({
     name: z.string().max(255),
     type: z.enum(RegistryType),
     storageLocation: z.string().max(255),
-    createdAt: z.coerce.date()
+    createdAt: z.coerce.date(),
+    createdByUserId: z.number().positive().optional()
 });
 
 export interface RegistryDictionary {
@@ -20,6 +21,7 @@ export interface RegistryDictionary {
     type: RegistryType;
     storageLocation: string;
     createdAt: Date;
+    createdByUserId?: number;
 }
 
 export class Registry {
@@ -28,6 +30,7 @@ export class Registry {
     readonly #type: RegistryType;
     readonly #storageLocation: string;
     readonly #createdAt: Date;
+    readonly #createdByUserId?: number;
 
     /**
      * Constructor for the Registry class.
@@ -37,12 +40,13 @@ export class Registry {
      * @param storageLocation the location where files are stored for the registry
      * @param createdAt the time the registry was created at
      */
-    constructor(id: number, name: string, type: RegistryType, storageLocation: string, createdAt: Date) {
+    constructor(id: number, name: string, type: RegistryType, storageLocation: string, createdAt: Date, createdByUserId?: number) {
         this.#id = id;
         this.#name = name;
         this.#type = type;
         this.#storageLocation = storageLocation;
         this.#createdAt = createdAt;
+        this.#createdByUserId = createdByUserId;
     }
 
     /**
@@ -56,8 +60,8 @@ export class Registry {
             throw new Error(`Invalid registry object: ${parsed.error.message}`);
         }
 
-        const { id, name, type, storageLocation, createdAt } = parsed.data;
-        return new Registry(id, name, type, storageLocation, createdAt);
+        const { id, name, type, storageLocation, createdAt, createdByUserId } = parsed.data;
+        return new Registry(id, name, type, storageLocation, createdAt, createdByUserId);
     }
 
     /**
@@ -100,6 +104,10 @@ export class Registry {
         return this.#createdAt;
     }
 
+    get createdByUserId(): number | undefined {
+        return this.#createdByUserId;
+    }
+
     /**
      * Converts the registry to a dictionary representation.
      * @returns a dictionary representation of the registry
@@ -110,7 +118,8 @@ export class Registry {
             name: this.#name,
             type: this.#type,
             storageLocation: this.#storageLocation,
-            createdAt: this.#createdAt
+            createdAt: this.#createdAt,
+            createdByUserId: this.#createdByUserId
         };
     }
 
@@ -122,11 +131,12 @@ export class Registry {
         return this.#id === other.#id &&
             this.#name === other.#name &&
             this.#type === other.#type &&
+            this.#createdByUserId === other.#createdByUserId &&
             this.#storageLocation === other.#storageLocation &&
             this.#createdAt.getTime() === other.#createdAt.getTime();
     }
 
     public toString(): string {
-        return `Registry(id=${this.#id}, name=${this.#name}, type=${this.#type}, storageLocation=${this.#storageLocation}, createdAt=${this.#createdAt.toISOString()})`;
+        return `Registry(id=${this.#id}, name=${this.#name}, type=${this.#type}, storageLocation=${this.#storageLocation}, createdAt=${this.#createdAt.toISOString()}, createdByUserId=${this.#createdByUserId})`;
     }
 }

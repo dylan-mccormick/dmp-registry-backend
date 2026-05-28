@@ -55,7 +55,8 @@ export class RegistryLifecycleServiceImpl implements RegistryLifecycleService {
         const data = await this.#dbApi.post('/registry', {
             name,
             type,
-            storage_location: storageLocation
+            storage_location: storageLocation,
+            created_by_user_id: creator.id
         }).then(res => res.data)
         const registry = Registry.fromObject(data);
 
@@ -100,7 +101,7 @@ export class RegistryLifecycleServiceImpl implements RegistryLifecycleService {
     }
 
     public async getRegistriesForUser(userId: number): Promise<Registry[]> {
-        return this.#dbApi.get(`/registry?id=${userId}`).then(res => {
+        return this.#dbApi.get(`/registry?userId=${userId}&permissionId=${await this.#registryActorRoleService.getActorPermissionMapping(ActorPermissions.READ_REGISTRY)}`).then(res => {
             return res.data.map((registryData: any) => Registry.fromObject(registryData));
         });
     }

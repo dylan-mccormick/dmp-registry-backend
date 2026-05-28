@@ -11,6 +11,12 @@ import { User } from "../model/User";
 
 export interface RegistryActorRoleService {
     /**
+     * Gets the corresponding ID for a specific Actor Permission, which is required for granting and revoking permissions for users and agents
+     * @param permission the permission to get the ID of
+     */
+    getActorPermissionMapping(permission: ActorPermissions): Promise<number>;
+
+    /**
      * Gets a list of Actor Permissions that a specific user has on a specific registry
      * @param registry the registry to check user roles for
      * @param user the user to check the roles of

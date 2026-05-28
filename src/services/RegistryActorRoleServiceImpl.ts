@@ -22,7 +22,7 @@ export class RegistryActorRoleServiceImpl implements RegistryActorRoleService {
         this.#dbApi = dbApi;
     }
 
-    private async getActorPermissionMapping(permission: ActorPermissions): Promise<number> {
+    public async getActorPermissionMapping(permission: ActorPermissions): Promise<number> {
         if (this.#permissionMappingCache.has(permission)) return this.#permissionMappingCache.get(permission)!;
         return this.#dbApi.get(`/registry/permissions?name=${encodeURIComponent(permission)}`).then(res => {
             if (!res.data?.id) throw new DatabaseError("ID field not found in the response to get actor permission mapping.")
