@@ -12,8 +12,11 @@ import { Authenticator } from "./api/Authenticator";
 import { UsersRoleService } from "./services/UsersRoleService";
 import errorHandler from "./api/errorHandler";
 import { UsersManagementService } from "./services/UsersManagementService";
+import { RegistryRouterAPI } from "./api/RegistryRouterAPI";
+import { RegistryLifecycleService } from "./services/RegistryLifecycleService";
+import { RegistryActorRoleService } from "./services/RegistryActorRoleService";
 
-export const initAPI = (usersAuthService: UsersAuthService, usersRoleService: UsersRoleService, usersManagementService: UsersManagementService): Promise<void> => {
+export const initAPI = (usersAuthService: UsersAuthService, usersRoleService: UsersRoleService, usersManagementService: UsersManagementService, registryLifecycleService: RegistryLifecycleService, registryActorRoleService: RegistryActorRoleService): Promise<void> => {
     return new Promise((resolve, reject) => {
         // rate limiting
         const limiter = rateLimit({
@@ -59,9 +62,13 @@ export const initAPI = (usersAuthService: UsersAuthService, usersRoleService: Us
         const usersRouterAPI = new UsersRouterAPI(usersAuthService, usersRoleService, usersManagementService, authenticator);
         const usersRouter = usersRouterAPI.registerRoutes();
 
+        const registriesRouterAPI = new RegistryRouterAPI(registryLifecycleService, registryActorRoleService, usersAuthService, authenticator)
+        const registriesRouter = registriesRouterAPI.registerRoutes();
+
         // start server
         const PORT = process.env.PORT || 3000;
         app.use("/api/v1/users", usersRouter);
+        app.use("/api/v1/registries", registriesRouter);
 
         app.use(errorHandler);
 

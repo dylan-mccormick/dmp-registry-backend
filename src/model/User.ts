@@ -114,6 +114,10 @@ export class User extends Actor {
         return this.#tokenVersion;
     }
 
+    /**
+     * Converts the User object to a dictionary representation.
+     * @returns a dictionary representation of the User
+     */
     public toDictionary(): UserDictionary {
         return {
             id: this.#id,

@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { ZodError } from "zod";
 import { WebRequestError } from "../error/WebRequestError";
+import { BadRequestError } from "../error/BadRequestError";
 
 const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction) => {
     // ZodErrors: Bad Request
@@ -11,6 +12,11 @@ const errorHandler = (err: Error, req: Request, res: Response, next: NextFunctio
     // UnauthorizedError: Just return the error message without exposing internal details
     if (err instanceof WebRequestError) {
         return res.status(err.errorStatus).json({ error: err.message });
+    }
+
+    // BadRequestError: Return the bad request Code if applicable
+    if (err instanceof BadRequestError && err.errorStatus === 400) {
+        return res.status(400).json({ error: err.code ? err.code : "Bad Request" });
     }
 
     // Log the error

@@ -8,6 +8,7 @@ import { UsersRoleService } from "../services/UsersRoleService";
 import { UserAdminUpdateQuerySchema, UserCreateQuerySchema, UserIdPermissionQuerySchema, UserIdQuerySchema, UserPasswordOnlyQuerySchema, UserPasswordUpdateQuerySchema, UserPersonalUpdateQuerySchema } from "./schema/UserQuerySchema";
 import { UsersManagementService } from "../services/UsersManagementService";
 import { AxiosError } from "axios";
+import { BadRequestError } from "../error/BadRequestError";
 
 export class UsersRouterAPI {
     readonly #usersAuthService: UsersAuthService;
@@ -36,7 +37,7 @@ export class UsersRouterAPI {
                 res.cookie("token", token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax" });
                 res.status(201).json({ message: "User registered successfully" });
             } catch (error) {
-                if (error instanceof AxiosError && error.response?.data?.code === "USERNAME_ALREADY_IN_USE") {
+                if (error instanceof BadRequestError && error.code === "USERNAME_ALREADY_IN_USE") {
                     return res.status(400).json({ message: "Username already in use" });
                 }
                 console.error("Error during user registration:", error);

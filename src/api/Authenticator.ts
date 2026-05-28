@@ -19,8 +19,8 @@ const JwtPayloadSchema = z.object({
 });
 
 export interface AuthedRequest extends Request {
-    user?: User;
-    userPermissions?: UserPermissions[];
+    user: User;
+    userPermissions: UserPermissions[];
 }
 
 export class Authenticator {
