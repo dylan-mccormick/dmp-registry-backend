@@ -30,15 +30,16 @@ export class RegistryRouterAPI {
         // Get user's registries
         router.get("/list/me", this.#authenticate, asyncHandler(async (req: AuthedRequest, res: Response) => {
             const registries = await this.#registryLifecycleService.getRegistriesForUser(req.user.id);
-            res.status(200).json(registries.map(r => (
+            const result = await Promise.all(registries.map(async r => (
                 {
                     id: r.id,
                     name: r.name,
                     type: r.type,
-                    owner: r.createdByUserId,
+                    owner: r.createdByUserId ? await this.#usersAuthService.getUserById(r.createdByUserId).then(user => user.username) : null,
                     createdAt: r.createdAt
                 }
             )));
+            res.status(200).json(result);
         }))
 
         router.post("/new", this.#authenticate, this.#requiredPermissions([ UserPermissions.CREATE_REGISTRY ]), asyncHandler(async (req: AuthedRequest, res: Response) => {
