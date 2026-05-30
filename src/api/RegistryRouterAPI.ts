@@ -25,6 +25,8 @@ export class RegistryRouterAPI {
         this.#requiredRegistryPermissions = authenticator.requiredRegistryPermissions.bind(authenticator);
     }
 
+
+
     public registerRoutes(): Router {
         const router = Router();
 
@@ -58,7 +60,23 @@ export class RegistryRouterAPI {
             const { registryId } = RegistryIdQuerySchema.parse(req.params);
             const result = await this.#registryLifecycleService.getRegistryById(registryId);
             if (!result) return res.status(404).json({ message: "Registry not found" });
-            res.status(200).json(result.toDictionary());
+            // get information to populate owner fields
+            const dict: any = result.toDictionary() as any;
+            if (result.createdByUserId) {
+                const creatorInfo = await this.#usersAuthService.getUserById(result.createdByUserId);
+                dict.creatorUsername = creatorInfo.username;
+            }
+            res.status(200).json(dict);
+        }))
+
+        // Get my permissions about a registry
+        router.get("/:registryId/permissions/me", this.#authenticate, this.#requiredRegistryPermissions([ ActorPermissions.READ_REGISTRY ]), asyncHandler(async (req: AuthedRegistryRequest, res: Response) => {
+            const { registryId } = RegistryIdQuerySchema.parse(req.params);
+            const registry = await this.#registryLifecycleService.getRegistryById(registryId);
+            if (!registry) return res.status(404).json({ message: "Registry not found" });
+            // get personal permissions
+            const permissions = await this.#registryActorRoleService.getUserRoles(registry, req.user);
+            res.status(200).json(permissions);
         }))
 
         return router;
