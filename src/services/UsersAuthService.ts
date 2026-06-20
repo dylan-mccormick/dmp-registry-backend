@@ -28,6 +28,12 @@ export interface UsersAuthService {
     deleteUser(user: User): Promise<void>;
 
     /**
+     * Searches for users in the system that match a given query string.
+     * @param query the query to search by
+     */
+    searchUser(query: string): Promise<User[]>;
+
+    /**
      * Registers a new user in the system.
      * @param username the username to create
      * @param email the email to set

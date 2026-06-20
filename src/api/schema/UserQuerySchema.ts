@@ -11,6 +11,10 @@ export const UserCreateQuerySchema = z.object({
     password: z.string().min(8).max(255).regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, { message: "Password must be 8+ characters and include at least one uppercase letter, one lowercase letter, one number, and one special character" })
 });
 
+export const UserSearchQuerySchema = z.object({
+    search: z.string().min(1).max(255)
+});
+
 export const UserPasswordOnlyQuerySchema = z.object({
     password: z.string().min(8).max(255)
 });
