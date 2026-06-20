@@ -11,6 +11,11 @@ import { z } from "zod";
 import { UserPermissions } from "../model/UserPermissions";
 import { User } from "../model/User";
 import { UsersRoleService } from "../services/UsersRoleService";
+import { ActorPermissions } from "../model/ActorPermissions";
+import { RegistryActorRoleService } from "../services/RegistryActorRoleService";
+import { RegistryLifecycleService } from "../services/RegistryLifecycleService";
+import { RegistryIdQuerySchema } from "./schema/RegistryLifecycleSchema";
+import { Registry } from "../model/Registry";
 
 const JwtPayloadSchema = z.object({
     id: z.number().int().positive(),
@@ -23,14 +28,23 @@ export interface AuthedRequest extends Request {
     userPermissions: UserPermissions[];
 }
 
+export interface AuthedRegistryRequest extends AuthedRequest {
+    registry: Registry;
+    actorPermissions: ActorPermissions[];
+}
+
 export class Authenticator {
 
     readonly #usersAuthService: UsersAuthService;
     readonly #usersRoleService: UsersRoleService;
+    readonly #registryLifecycleService: RegistryLifecycleService;
+    readonly #registryActorRoleService: RegistryActorRoleService;
 
-    constructor(usersAuthService: UsersAuthService, usersRoleService: UsersRoleService) {
+    constructor(usersAuthService: UsersAuthService, usersRoleService: UsersRoleService, registryLifecycleService: RegistryLifecycleService, registryActorRoleService: RegistryActorRoleService) {
         this.#usersAuthService = usersAuthService;
         this.#usersRoleService = usersRoleService;
+        this.#registryActorRoleService = registryActorRoleService;
+        this.#registryLifecycleService = registryLifecycleService;
     }
 
     /**
@@ -83,6 +97,34 @@ export class Authenticator {
 
             if (!hasRequiredPermissions) {
                 return res.status(403).json({ error: "Forbidden: Insufficient permissions" });
+            }
+
+            next();
+        }
+    }
+
+    public requiredRegistryPermissions(permissions: ActorPermissions[]): (req: Request, res: Response, next: NextFunction) => void {
+        return async (req: Request, res: Response, next: NextFunction) => {
+            const authedReq = req as AuthedRequest;
+            if (!authedReq.user) {
+                return res.status(401).json({ error: "Unauthorized: No user authenticated" });
+            }
+
+            // fetch registry
+            const { registryId } = RegistryIdQuerySchema.parse(req.params);
+            const registry = await this.#registryLifecycleService.getRegistryById(registryId);
+            if (!registry) return res.status(404).json({ error: "Registry not found" });
+
+            // fetch actor permissions
+            const actorPermissions = await this.#registryActorRoleService.getUserRoles(registry, authedReq.user);
+
+            // assign details
+            (authedReq as AuthedRegistryRequest).registry = registry;
+            (authedReq as AuthedRegistryRequest).actorPermissions = actorPermissions;
+
+            // verify has permissions
+            if (!permissions.every(p => actorPermissions.includes(p))) {
+                return res.status(403).json({ error: "Forbidden: Insufficient registry permissions" });
             }
 
             next();

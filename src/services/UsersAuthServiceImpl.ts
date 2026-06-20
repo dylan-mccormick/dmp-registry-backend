@@ -53,6 +53,11 @@ export class UsersAuthServiceImpl implements UsersAuthService {
         return;
     }
 
+    public async searchUser(query: string): Promise<User[]> {
+        const response = await this.#dbApi.get(`/users?search=${encodeURIComponent(query)}`);
+        return response.data.map((userObj: any) => User.fromObject(userObj));
+    }
+
     public async registerUser(username: string, email: string, password: string): Promise<string> {
         const password_hash = await bcrypt.hash(password, 10);
         try {

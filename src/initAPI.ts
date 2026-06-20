@@ -27,7 +27,7 @@ export const initAPI = (usersAuthService: UsersAuthService, usersRoleService: Us
         const app = express();
 
         // init api services
-        const authenticator = new Authenticator(usersAuthService, usersRoleService);
+        const authenticator = new Authenticator(usersAuthService, usersRoleService, registryLifecycleService, registryActorRoleService);
 
         app.set('trust proxy', 1);
 

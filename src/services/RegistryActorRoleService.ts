@@ -11,6 +11,12 @@ import { User } from "../model/User";
 
 export interface RegistryActorRoleService {
     /**
+     * Gets the ActorPermission by the given role ID.
+     * @param roleId the id of the role to get
+     */
+    getActorRoleById(roleId: number): Promise<ActorPermissions>
+
+    /**
      * Gets the corresponding ID for a specific Actor Permission, which is required for granting and revoking permissions for users and agents
      * @param permission the permission to get the ID of
      */

@@ -34,9 +34,23 @@ export class RegistryActorRoleServiceImpl implements RegistryActorRoleService {
         })
     }
 
+    public async getActorRoleById(roleId: number): Promise<ActorPermissions> {
+        return this.#dbApi.get(`/registry/permissions/${roleId}`).then(res => {
+            return ActorPermissions[res.data.name as keyof typeof ActorPermissions];
+        }).catch(err => {
+            if (err.status === 404) {
+                console.error(`Permission with ID ${roleId} does not exist.`);
+                throw new DatabaseError(`Permission with ID ${roleId} does not exist.`);
+            }
+
+            console.error("Failed to fetch permission for ID.", err);
+            throw new DatabaseError("Unknown permissions error.");
+        })
+    }
+
     public async getUserRoles(registry: Registry, user: User): Promise<ActorPermissions[]> {
-        return this.#dbApi.get(`/users/${user.id}/registry/${registry.id}/permissions`).then(res => {
-            return [];
+        return this.#dbApi.get(`/users/${user.id}/registry/${registry.id}/permissions`).then(async res => {
+            return await Promise.all(res.data.map(({ permission_id }: { permission_id: number }) => this.getActorRoleById(permission_id)));
         }).catch(err => {
             console.error("Unknown database error.", err);
             throw new DatabaseError("Unknown error.");
