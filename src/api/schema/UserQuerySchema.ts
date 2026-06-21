@@ -16,7 +16,7 @@ export const UserSearchQuerySchema = z.object({
 });
 
 export const UserPasswordOnlyQuerySchema = z.object({
-    password: z.string().min(8).max(255)
+    password: z.string().min(1).max(255)
 });
 
 export const UserPasswordUpdateQuerySchema = z.object({
