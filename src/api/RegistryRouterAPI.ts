@@ -3,11 +3,11 @@ import { UserPermissions } from "../model/UserPermissions";
 import { RegistryLifecycleService } from "../services/RegistryLifecycleService";
 import { AuthedRegistryRequest, AuthedRequest, Authenticator } from "./Authenticator";
 import { asyncHandler } from "../Utils";
-import { CreateRegistryDetailsSchema, RegistryIdQuerySchema, RegistryPermissionNameArrayQuerySchema } from "./schema/RegistryLifecycleSchema";
+import { CreateRegistryDetailsSchema, RegistryIdQuerySchema, RegistryPermissionNameArrayQuerySchema, UpdateRegistryDetailsSchema } from "./schema/RegistryLifecycleSchema";
 import { UsersAuthService } from "../services/UsersAuthService";
 import { RegistryActorRoleService } from "../services/RegistryActorRoleService";
 import { ActorPermissions } from "../model/ActorPermissions";
-import { UserIdQuerySchema, UserSearchQuerySchema } from "./schema/UserQuerySchema";
+import { UserIdQuerySchema, UserPasswordOnlyQuerySchema, UserSearchQuerySchema } from "./schema/UserQuerySchema";
 
 export class RegistryRouterAPI {
     readonly #registryLifecycleService: RegistryLifecycleService;
@@ -71,6 +71,47 @@ export class RegistryRouterAPI {
 
             res.status(200).json({ users: results });
         }));
+
+        // Delete a registry -- requires owner's password
+        router.delete("/:registryId", this.#authenticate, this.#requiredPermissions([ UserPermissions.CREATE_REGISTRY ]), asyncHandler(async (req: AuthedRequest, res: Response) => {
+            const { registryId } = RegistryIdQuerySchema.parse(req.params);
+            const { password } = UserPasswordOnlyQuerySchema.parse(req.body);
+
+            const registry = await this.#registryLifecycleService.getRegistryById(registryId);
+            if (registry == null) return res.status(404).json({ message: "Registry not found" });
+            if (registry.createdByUserId == null) return res.status(404).json({ message: "Registry is not owned" });
+            const owner = await this.#usersAuthService.getUserById(registry.createdByUserId);
+            if (owner == null) return res.status(404).json({ message: "Registry owner not found" });
+            if (owner.id != req.user.id) return res.status(403).json({ message: "Only the registry owner may delete the registry" });
+
+            if (!(await this.#usersAuthService.verifyPassword(owner, password))) return res.status(403).json({ message: "Incorrect password" });
+
+            // proceed with registry deletion
+            await this.#registryLifecycleService.deleteRegistry(registryId);
+            res.status(200).json({ message: "Deleted registry successfully" });
+        }));
+
+        // Update a regustry
+        router.put("/:registryId", this.#authenticate, this.#requiredPermissions([ UserPermissions.CREATE_REGISTRY ]), asyncHandler(async (req: AuthedRequest, res: Response) => {
+            const { registryId } = RegistryIdQuerySchema.parse(req.params);
+            const { name } = UpdateRegistryDetailsSchema.parse(req.body);
+
+            if (!name) return res.status(304).json({ message: "No changes made" });
+
+            const registry = await this.#registryLifecycleService.getRegistryById(registryId);
+            if (registry == null) return res.status(404).json({ message: "Registry not found" });
+            if (registry.createdByUserId == null) return res.status(404).json({ message: "Registry is not owned" });
+            const owner = await this.#usersAuthService.getUserById(registry.createdByUserId);
+            if (owner == null) return res.status(404).json({ message: "Registry owner not found" });
+            if (owner.id != req.user.id) return res.status(403).json({ message: "Only the registry owner may update the registry" });
+
+            // check if name can be changed
+            if (await this.#registryLifecycleService.getRegistryByName(name)) return res.status(409).json({ message: "Registry with this name already exists" });
+
+            // update the name
+            await this.#registryLifecycleService.changeRegistryName(registry, name);
+            res.status(200).json({ message: "Registry updated successfully" });
+        }))
 
         // Search for users (to add to registry)
         router.get("/:registryId/users/search", this.#authenticate, this.#requiredRegistryPermissions([ ActorPermissions.MANAGE_USERS ]), asyncHandler(async (req: AuthedRegistryRequest, res: Response) => {
