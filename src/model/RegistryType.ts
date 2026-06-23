@@ -1,4 +1,6 @@
 export enum RegistryType {
     files = "files",
-    mongoDB = "mongodb"
+    mongoDB = "mongodb",
+    sqlite = "sqlite",
+    keyValue = "keyvalue"
 }
