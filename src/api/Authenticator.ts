@@ -16,6 +16,7 @@ import { RegistryActorRoleService } from "../services/RegistryActorRoleService";
 import { RegistryLifecycleService } from "../services/RegistryLifecycleService";
 import { RegistryIdQuerySchema } from "./schema/RegistryLifecycleSchema";
 import { Registry } from "../model/Registry";
+import { IllegalArgumentError } from "../error/IllegalArgumentError";
 
 const JwtPayloadSchema = z.object({
     id: z.number().int().positive(),
@@ -103,15 +104,32 @@ export class Authenticator {
         }
     }
 
-    public requiredRegistryPermissions(permissions: ActorPermissions[]): (req: Request, res: Response, next: NextFunction) => void {
+    public requiredRegistryPermissions(permissions: ActorPermissions[]): (req: Request, res: Response, next: NextFunction) => void;
+
+    public requiredRegistryPermissions(registryId: number, permissions: ActorPermissions[]): (req: Request, res: Response, next: NextFunction) => void;
+
+    public requiredRegistryPermissions(arg0: number | ActorPermissions[], arg1?: ActorPermissions[]): (req: Request, res: Response, next: NextFunction) => void {
         return async (req: Request, res: Response, next: NextFunction) => {
+            // handle method overloading
+            let registryId: number;
+            let permissions: ActorPermissions[];
+            if (typeof arg0 == "number" && arg1 && typeof arg1 == "object") {
+                registryId = arg0 as number;
+                permissions = arg1;
+            } else if (typeof arg0 == "object" && !arg1) {
+                registryId = RegistryIdQuerySchema.parse(req.params).registryId;
+                permissions = arg0;
+            } else {
+                throw new IllegalArgumentError(`No method overload matches the provided signature. (${typeof arg0}, ${typeof arg1})`);
+            }
+
+            // Actual handler
             const authedReq = req as AuthedRequest;
             if (!authedReq.user) {
                 return res.status(401).json({ error: "Unauthorized: No user authenticated" });
             }
 
             // fetch registry
-            const { registryId } = RegistryIdQuerySchema.parse(req.params);
             const registry = await this.#registryLifecycleService.getRegistryById(registryId);
             if (!registry) return res.status(404).json({ error: "Registry not found" });
 

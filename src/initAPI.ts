@@ -1,6 +1,6 @@
 import helmet from "helmet";
 import cors from "cors";
-import express from "express";
+import express, { Application } from "express";
 import cookieParser from "cookie-parser";
 
 import morgan from "morgan";
@@ -16,7 +16,7 @@ import { RegistryRouterAPI } from "./api/RegistryRouterAPI";
 import { RegistryLifecycleService } from "./services/RegistryLifecycleService";
 import { RegistryActorRoleService } from "./services/RegistryActorRoleService";
 
-export const initAPI = (usersAuthService: UsersAuthService, usersRoleService: UsersRoleService, usersManagementService: UsersManagementService, registryLifecycleService: RegistryLifecycleService, registryActorRoleService: RegistryActorRoleService): Promise<void> => {
+export const initAPI = (usersAuthService: UsersAuthService, usersRoleService: UsersRoleService, usersManagementService: UsersManagementService, registryLifecycleService: RegistryLifecycleService, registryActorRoleService: RegistryActorRoleService, authenticator: Authenticator): Promise<Application> => {
     return new Promise((resolve, reject) => {
         // rate limiting
         const limiter = rateLimit({
@@ -25,9 +25,6 @@ export const initAPI = (usersAuthService: UsersAuthService, usersRoleService: Us
         });
 
         const app = express();
-
-        // init api services
-        const authenticator = new Authenticator(usersAuthService, usersRoleService, registryLifecycleService, registryActorRoleService);
 
         app.set('trust proxy', 1);
 
@@ -74,7 +71,7 @@ export const initAPI = (usersAuthService: UsersAuthService, usersRoleService: Us
 
         app.listen(PORT, () => {
             console.log(`API server is running on port ${PORT}`);
-            resolve();
+            resolve(app);
         }).on("error", (err) => {
             console.error("Failed to start API server:", err);
             reject(err);
