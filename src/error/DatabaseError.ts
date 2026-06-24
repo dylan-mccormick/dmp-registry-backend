@@ -7,9 +7,10 @@ export class DatabaseError extends Error {
     /**
      * Construct a new DatabaseError
      * @param message the message of the error
+     * @param cause the optional cause of the error
      */
-    constructor(message: string) {
-        super(message);
+    constructor(message: string, cause?: unknown) {
+        super(message, { cause });
         this.name = "DatabaseError";
     }
 }

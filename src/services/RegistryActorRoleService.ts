@@ -82,11 +82,4 @@ export interface RegistryActorRoleService {
      */
     getUsersWithRole(registry: Registry, permission: ActorPermissions): Promise<User[]>;
 
-    /**
-     * Gets a list of registry agents, on a specific registry, that have a specific role
-     * @param registry the registry to check
-     * @param permission the permission to check
-     * @returns agents of the registry with such role
-     */
-    getAgentsWithRole(registry: Registry, permission: ActorPermissions): Promise<RegistryAgent[]>;
 }

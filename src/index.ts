@@ -5,14 +5,9 @@ import { initAPI } from './initAPI';
 import { UsersRoleServiceImpl } from './services/UsersRoleServiceImpl';
 import { verifyRegistryActorPermissionsExist, verifyUserPermissionsExist } from './verifyPermissionsExist';
 import { UsersManagementServiceImpl } from './services/UsersManagementServiceImpl';
-import { UsersManagementService } from './services/UsersManagementService';
-import { UsersAuthService } from './services/UsersAuthService';
-import { UsersRoleService } from './services/UsersRoleService';
 import { RegistryLifecycleServiceImpl } from './services/RegistryLifecycleServiceImpl';
-import { RegistryLifecycleService } from './services/RegistryLifecycleService';
-import { RegistryActorRoleService } from './services/RegistryActorRoleService';
 import { RegistryActorRoleServiceImpl } from './services/RegistryActorRoleServiceImpl';
-import { RegistryType } from './model/RegistryType';
+import { RegistryAgentServiceImpl } from './services/RegistryAgentServiceImpl';
 import { ActorPermissions } from './model/ActorPermissions';
 
 const DEV_ENV = true;
@@ -22,18 +17,21 @@ dotenv.config({ path: DEV_ENV ? '.env.dev' : '.env.prod' });
 initDB(process.env.DB_API_KEY as string, `http://${process.env.DB_HOST}:${process.env.DB_PORT}/api/v1`).then(async dbApi => {
     console.log("Database initialized successfully.");
 
-    const usersManagementService: UsersManagementService = new UsersManagementServiceImpl(dbApi);
-    const usersAuthService: UsersAuthService = new UsersAuthServiceImpl(dbApi, usersManagementService);
-    const usersRoleService: UsersRoleService = new UsersRoleServiceImpl(dbApi);
+    const usersManagementService = new UsersManagementServiceImpl(dbApi);
+    const usersAuthService = new UsersAuthServiceImpl(dbApi, usersManagementService);
+    const usersRoleService = new UsersRoleServiceImpl(dbApi);
 
-    const registryActorRoleService: RegistryActorRoleService = new RegistryActorRoleServiceImpl(dbApi);
-    const registryLifecycleService: RegistryLifecycleService = new RegistryLifecycleServiceImpl(dbApi, registryActorRoleService);
+    const registryActorRoleService = new RegistryActorRoleServiceImpl(dbApi);
+    const registryLifecycleService = new RegistryLifecycleServiceImpl(dbApi, registryActorRoleService);
+    const registryAgentService = new RegistryAgentServiceImpl(dbApi, usersAuthService, registryLifecycleService);
 
     await verifyUserPermissionsExist(dbApi);
     await verifyRegistryActorPermissionsExist(dbApi);
 
     initAPI(usersAuthService, usersRoleService, usersManagementService, registryLifecycleService, registryActorRoleService).then(async () => {
         console.log("API initialized successfully.");
+        console.log(await registryActorRoleService.getAgentRoles(await registryLifecycleService.getRegistryById(1), (await registryAgentService.getAgentById(2))!));
+        await registryAgentService.deleteAgent(2);
     }).catch((err) => {
         console.error("Failed to initialize API:", err);
         process.exit(1);

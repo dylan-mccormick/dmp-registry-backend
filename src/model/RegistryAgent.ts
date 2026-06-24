@@ -19,7 +19,7 @@ const RegistryAgentFromObjectSchema = z.object({
     id: z.number().positive(),
     registryId: z.number().positive(),
     name: z.string().max(255),
-    createdAt: z.date(),
+    createdAt: z.coerce.date(),
     createdByUserId: z.number().positive().optional()
 });
 
@@ -108,7 +108,7 @@ export class RegistryAgent extends Actor {
      * @param obj the object create the registry agent from
      * @returns the created registry agent, if possible
      */
-    public fromObject(obj: any): RegistryAgent {
+    public static fromObject(obj: any): RegistryAgent {
         const parsed = RegistryAgentFromObjectSchema.safeParse(obj);
         if (!parsed.success) {
             throw new Error(`Invalid registry agent object: ${parsed.error.message}`);
