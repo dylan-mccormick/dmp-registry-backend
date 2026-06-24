@@ -1,6 +1,6 @@
 import helmet from "helmet";
 import cors from "cors";
-import express from "express";
+import express, { Application } from "express";
 import cookieParser from "cookie-parser";
 
 import morgan from "morgan";
@@ -17,7 +17,7 @@ import { RegistryLifecycleService } from "./services/RegistryLifecycleService";
 import { RegistryActorRoleService } from "./services/RegistryActorRoleService";
 import { RegistryAgentService } from "./services/RegistryAgentService";
 
-export const initAPI = (usersAuthService: UsersAuthService, usersRoleService: UsersRoleService, usersManagementService: UsersManagementService, registryLifecycleService: RegistryLifecycleService, registryActorRoleService: RegistryActorRoleService, registryAgentService: RegistryAgentService): Promise<void> => {
+export const initAPI = (usersAuthService: UsersAuthService, usersRoleService: UsersRoleService, usersManagementService: UsersManagementService, registryLifecycleService: RegistryLifecycleService, registryActorRoleService: RegistryActorRoleService, registryAgentService: RegistryAgentService): Promise<Application> => {
     return new Promise((resolve, reject) => {
         // rate limiting
         const limiter = rateLimit({
@@ -63,7 +63,7 @@ export const initAPI = (usersAuthService: UsersAuthService, usersRoleService: Us
         const usersRouterAPI = new UsersRouterAPI(usersAuthService, usersRoleService, usersManagementService, authenticator);
         const usersRouter = usersRouterAPI.registerRoutes();
 
-        const registriesRouterAPI = new RegistryRouterAPI(registryLifecycleService, registryActorRoleService, usersAuthService, authenticator)
+        const registriesRouterAPI = new RegistryRouterAPI(registryLifecycleService, registryActorRoleService, usersAuthService, registryAgentService, authenticator)
         const registriesRouter = registriesRouterAPI.registerRoutes();
 
         // start server
@@ -75,7 +75,7 @@ export const initAPI = (usersAuthService: UsersAuthService, usersRoleService: Us
 
         app.listen(PORT, () => {
             console.log(`API server is running on port ${PORT}`);
-            resolve();
+            resolve(app);
         }).on("error", (err) => {
             console.error("Failed to start API server:", err);
             reject(err);

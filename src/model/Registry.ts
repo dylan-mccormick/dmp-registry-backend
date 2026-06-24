@@ -12,7 +12,7 @@ const RegistryFromObjectSchema = z.object({
     type: z.enum(RegistryType),
     storageLocation: z.string().max(255),
     createdAt: z.coerce.date(),
-    createdByUserId: z.number().positive().optional()
+    createdByUserId: z.number().positive().optional().nullable()
 });
 
 export interface RegistryDictionary {
@@ -61,7 +61,7 @@ export class Registry {
         }
 
         const { id, name, type, storageLocation, createdAt, createdByUserId } = parsed.data;
-        return new Registry(id, name, type, storageLocation, createdAt, createdByUserId);
+        return new Registry(id, name, type, storageLocation, createdAt, createdByUserId ?? undefined);
     }
 
     /**

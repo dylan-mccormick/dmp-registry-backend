@@ -20,6 +20,7 @@ const RegistryAgentFromObjectSchema = z.object({
     registryId: z.number().positive(),
     name: z.string().max(255),
     createdAt: z.coerce.date(),
+    keyHash: z.string().length(128),
     createdByUserId: z.number().positive().optional()
 });
 
@@ -30,6 +31,7 @@ export class RegistryAgent extends Actor {
     readonly #name: string;
     readonly #createdAt: Date;
     readonly #createdByUserId?: number;
+    readonly #keyHash: string;
 
     /**
      * Constructor for the RegistryAgent class.
@@ -37,15 +39,17 @@ export class RegistryAgent extends Actor {
      * @param registryId the id of the registry that the agent corresponds to
      * @param name the name of the agent
      * @param createdAt the time the agent was created at
+     * @param keyHash the key hash
      * @param createdByUserId the id of the user who created it
      */
-    constructor(id: number, registryId: number, name: string, createdAt: Date, createdByUserId?: number) {
+    constructor(id: number, registryId: number, name: string, createdAt: Date, keyHash: string, createdByUserId?: number) {
         super()
 
         this.#id = id;
         this.#registryId = registryId;
         this.#name = name;
         this.#createdAt = createdAt;
+        this.#keyHash = keyHash;
         this.#createdByUserId = createdByUserId;
     }
 
@@ -89,6 +93,10 @@ export class RegistryAgent extends Actor {
         return this.#createdByUserId;
     }
 
+    get keyHash(): string {
+        return this.#keyHash;
+    }
+
     /**
      * Converts the registry agent to a dictionary representation.
      * @returns a dictionary representation of the Registry Agent
@@ -114,8 +122,8 @@ export class RegistryAgent extends Actor {
             throw new Error(`Invalid registry agent object: ${parsed.error.message}`);
         }
 
-        const { id, registryId, name, createdAt, createdByUserId } = parsed.data;
-        return new RegistryAgent(id, registryId, name, createdAt, createdByUserId);
+        const { id, registryId, name, createdAt, createdByUserId, keyHash } = parsed.data;
+        return new RegistryAgent(id, registryId, name, createdAt, keyHash, createdByUserId);
     }
 
     public equals(other: any): boolean {
