@@ -42,7 +42,7 @@ initDB(process.env.DB_API_KEY as string, `http://${process.env.DB_HOST}:${proces
 
     const authenticator = new Authenticator(usersAuthService, usersRoleService, registryLifecycleService, registryActorRoleService, registryAgentService);
 
-    initAPI(usersAuthService, usersRoleService, usersManagementService, registryLifecycleService, registryActorRoleService, authenticator, registryAgentService).then(async app => {
+    initAPI(usersAuthService, usersRoleService, usersManagementService, registryLifecycleService, registryActorRoleService, registryAgentService).then(async app => {
         console.log("API initialized successfully.");
 
         // Initialize workers

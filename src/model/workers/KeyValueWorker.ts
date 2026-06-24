@@ -106,11 +106,11 @@ export class KeyValueWorker extends RegistryWorker {
 
     public registerRoutes(authenticator: Authenticator): Router {
         const router = Router();
-        const authenticate = authenticator.authenticate.bind(authenticator);
-        const requiredRegistryPermissions = authenticator.requiredRegistryPermissions.bind(authenticator, this.registry.id);
+        const actorAuthenticate = authenticator.actorAuthenticate.bind(authenticator);
+        const requiredRegistryActorPermissions = authenticator.requiredRegistryActorPermissions.bind(authenticator, this.registry.id);
 
         // Get all key-value pairs, or query
-        router.get("/data", authenticate, requiredRegistryPermissions([ ActorPermissions.READ_REGISTRY ]), asyncHandler(async (req: AuthedRegistryRequest, res: Response) => {
+        router.get("/data", actorAuthenticate, requiredRegistryActorPermissions([ ActorPermissions.READ_REGISTRY ]), asyncHandler(async (req: AuthedRegistryRequest, res: Response) => {
             // get key-value pair by id, key
             const { id, key } = EntryQuerySchema.parse(req.query);
 
@@ -141,12 +141,12 @@ export class KeyValueWorker extends RegistryWorker {
         }));
 
         // set key-value pair
-        router.put("/data/:key", authenticate, requiredRegistryPermissions([ ActorPermissions.WRITE_REGISTRY ]), asyncHandler(async (req: AuthedRegistryRequest, res: Response) => {
+        router.put("/data/:key", actorAuthenticate, requiredRegistryActorPermissions([ ActorPermissions.WRITE_REGISTRY ]), asyncHandler(async (req: AuthedRegistryRequest, res: Response) => {
 
         }));
 
         // delete key-value pair
-        router.delete("/data/:key", authenticate, requiredRegistryPermissions([ ActorPermissions.WRITE_REGISTRY ]), asyncHandler(async (req: AuthedRegistryRequest, res: Response) => {
+        router.delete("/data/:key", actorAuthenticate, requiredRegistryActorPermissions([ ActorPermissions.WRITE_REGISTRY ]), asyncHandler(async (req: AuthedRegistryRequest, res: Response) => {
 
         }))
 
