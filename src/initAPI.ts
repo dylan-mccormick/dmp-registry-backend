@@ -63,7 +63,7 @@ export const initAPI = (usersAuthService: UsersAuthService, usersRoleService: Us
         const usersRouterAPI = new UsersRouterAPI(usersAuthService, usersRoleService, usersManagementService, authenticator);
         const usersRouter = usersRouterAPI.registerRoutes();
 
-        const registriesRouterAPI = new RegistryRouterAPI(registryLifecycleService, registryActorRoleService, usersAuthService, authenticator)
+        const registriesRouterAPI = new RegistryRouterAPI(registryLifecycleService, registryActorRoleService, usersAuthService, registryAgentService, authenticator)
         const registriesRouter = registriesRouterAPI.registerRoutes();
 
         // start server

@@ -8,18 +8,23 @@ import { UsersAuthService } from "../services/UsersAuthService";
 import { RegistryActorRoleService } from "../services/RegistryActorRoleService";
 import { ActorPermissions } from "../model/ActorPermissions";
 import { UserIdQuerySchema, UserPasswordOnlyQuerySchema, UserSearchQuerySchema } from "./schema/UserQuerySchema";
+import { RegistryAgentService } from "../services/RegistryAgentService";
+import { AgentIdQuerySchema, AgentPermissionsSchema, CreateAgentSchema } from "./schema/AgentLifecycleSchema";
+import { IllegalArgumentError } from "../error/IllegalArgumentError";
 
 export class RegistryRouterAPI {
     readonly #registryLifecycleService: RegistryLifecycleService;
     readonly #registryActorRoleService: RegistryActorRoleService;
+    readonly #registryAgentService: RegistryAgentService;
     readonly #usersAuthService: UsersAuthService;
     readonly #authenticate: (req: Request, res: Response, next: NextFunction) => void;
     readonly #requiredPermissions: (permissions: UserPermissions[]) => (req: Request, res: Response, next: NextFunction) => void;
     readonly #requiredRegistryPermissions: (permissions: ActorPermissions[]) => (req: Request, res: Response, next: NextFunction) => void;
 
-    constructor(registryLifecycleService: RegistryLifecycleService, registryActorRoleService: RegistryActorRoleService, usersAuthService: UsersAuthService, authenticator: Authenticator) {
+    constructor(registryLifecycleService: RegistryLifecycleService, registryActorRoleService: RegistryActorRoleService, usersAuthService: UsersAuthService, registryAgentService: RegistryAgentService, authenticator: Authenticator) {
         this.#registryLifecycleService = registryLifecycleService;
         this.#registryActorRoleService = registryActorRoleService;
+        this.#registryAgentService = registryAgentService;
         this.#usersAuthService = usersAuthService;
         this.#authenticate = authenticator.authenticate.bind(authenticator);
         this.#requiredPermissions = authenticator.requiredPermissions.bind(authenticator);
@@ -219,7 +224,119 @@ export class RegistryRouterAPI {
             // get personal permissions
             const permissions = await this.#registryActorRoleService.getUserRoles(registry, req.user);
             res.status(200).json(permissions);
+        }));
+
+        // get all agents in a registry
+        router.get("/:registryId/agents", this.#authenticate, this.#requiredRegistryPermissions([ ActorPermissions.READ_AGENTS ]), asyncHandler(async (req: AuthedRegistryRequest, res: Response) => {
+            // get all agents
+            const agents = await this.#registryAgentService.getAgentsInRegistry(req.registry.id);
+            res.status(200).json(await Promise.all(agents.map(async a => ({ ...a.toDictionary(), createdBy: ( a.createdByUserId && (await this.#usersAuthService.getUserById(a.createdByUserId)).username ) }))));
+        }));
+
+        // create a new agent
+        router.post("/:registryId/agents", this.#authenticate, this.#requiredRegistryPermissions([ ActorPermissions.WRITE_AGENTS ]), asyncHandler(async (req: AuthedRegistryRequest, res: Response) => {
+            // try to create the new agent
+            const { name } = CreateAgentSchema.parse(req.body);
+            try {
+                const newAgent = await this.#registryAgentService.createAgent(req.registry.id, name, req.user.id);
+                res.status(201).json({ ...(newAgent.toDictionary()), keyHash: newAgent.keyHash, createdBy: await this.#usersAuthService.getUserById(req.user.id) });
+            } catch (err) {
+                if (err instanceof IllegalArgumentError) {
+                    if (err.message.includes("name already exists")) {
+                        res.status(409).json({ message: "Registry agent with that name already exists" });
+                        return;
+                    }
+                }
+                res.status(500).json("Failed to create the registry agent");
+            }
         }))
+
+        // update the agent's name
+        router.put("/:registryId/agents/:agentId", this.#authenticate, this.#requiredRegistryPermissions([ ActorPermissions.WRITE_AGENTS ]), asyncHandler(async (req: AuthedRegistryRequest, res: Response) => {
+            const { agentId } = AgentIdQuerySchema.parse(req.params);
+            const { name } = CreateAgentSchema.parse(req.body);
+
+            try {
+                await this.#registryAgentService.updateAgentName(agentId, name);
+                res.status(200).json({ message: "Name successfully updated." });
+            } catch (err) {
+                if (err instanceof IllegalArgumentError) {
+                    if (err.message.includes("name already exists")) {
+                        return res.status(409).json({ message: "Registry agent with that name already exists" });
+                    } else if (err.message.includes("does not exist")) {
+                        return res.status(404).json({ message: "Agent with that ID does not exist" });
+                    }
+                    res.status(500).json({ message: "Failed to update the registry agent" });
+                }
+            }
+        }));
+
+        // delete a registry agent
+        router.delete("/:registryId/agents/:agentId", this.#authenticate, this.#requiredRegistryPermissions([ ActorPermissions.WRITE_AGENTS ]), asyncHandler(async (req: AuthedRegistryRequest, res: Response) => {
+            // idempotent delete
+            const { agentId } = AgentIdQuerySchema.parse(req.params);
+            await this.#registryAgentService.deleteAgent(agentId);
+            res.status(200).json({ message: "The agent is deleted" });
+        }));
+
+        // update the agent's key hash
+        router.put("/:registryId/agents/:agentId/key", this.#authenticate, this.#requiredRegistryPermissions([ ActorPermissions.WRITE_AGENTS ]), asyncHandler(async (req: AuthedRegistryRequest, res: Response) => {
+            const { agentId } = AgentIdQuerySchema.parse(req.params);
+
+            try {
+                const newHash = await this.#registryAgentService.updateAgentHash(agentId);
+                res.status(200).json({ keyHash: newHash });
+            } catch (err) {
+                if (err instanceof IllegalArgumentError) {
+                    if (err.message.includes("does not exist")) {
+                        return res.status(404).json({ message: "Agent with that ID does not exist" });
+                    }
+                    res.status(500).json({ message: "Failed to update the registry agent" });
+                }
+            }
+        }));
+
+        // get roles that an agent has
+        router.get("/:registryId/agents/:agentId/permissions", this.#authenticate, this.#requiredRegistryPermissions([ ActorPermissions.READ_AGENTS ]), asyncHandler(async (req: AuthedRegistryRequest, res: Response) => {
+            const { agentId } = AgentIdQuerySchema.parse(req.params);
+            const agent = await this.#registryAgentService.getAgentById(agentId);
+            if (!agent) return res.status(404).json({ message: "Registry agent not found" });
+
+            const roles = await this.#registryActorRoleService.getAgentRoles(req.registry, agent);
+            res.status(200).json({ roles });
+        }));
+
+        // grant permissions to an agent
+        router.post("/:registryId/agents/:agentId/permissions", this.#authenticate, this.#requiredRegistryPermissions([ ActorPermissions.WRITE_AGENTS ]), asyncHandler(async (req: AuthedRegistryRequest, res: Response) => {
+            const { agentId } = AgentIdQuerySchema.parse(req.params);
+            const { permissions } = AgentPermissionsSchema.parse(req.body);
+            const agent = await this.#registryAgentService.getAgentById(agentId);
+            if (!agent) return res.status(404).json({ message: "Registry agent not found" });
+
+            // change roles
+            await Promise.all(permissions.map(async p => await this.#registryActorRoleService.grantAgentRole(req.registry, agent, p)));
+            res.status(200).json({ message: "Permissions granted successfully" });
+        }));
+
+        // revoke permissions from an agent
+        router.delete("/:registryId/agents/:agentId/permissions", this.#authenticate, this.#requiredRegistryPermissions([ ActorPermissions.WRITE_AGENTS ]), asyncHandler(async (req: AuthedRegistryRequest, res: Response) => {
+            const { agentId } = AgentIdQuerySchema.parse(req.params);
+            const { permissions } = AgentPermissionsSchema.parse(req.body);
+            const agent = await this.#registryAgentService.getAgentById(agentId);
+            if (!agent) return res.status(404).json({ message: "Registry agent not found" });
+
+            // change roles
+            await Promise.all(permissions.map(async p => await this.#registryActorRoleService.revokeAgentRole(req.registry, agent, p)));
+            res.status(200).json({ message: "Permissions revoked successfully" });
+        }));
+
+        // get an agent by id
+        router.get("/:registryId/agents/:agentId", this.#authenticate, this.#requiredRegistryPermissions([ ActorPermissions.READ_AGENTS ]), asyncHandler(async (req: AuthedRegistryRequest, res: Response) => {
+            const { agentId } = AgentIdQuerySchema.parse(req.params);
+            const agent = await this.#registryAgentService.getAgentById(agentId);
+            if (!agent) return res.status(404).json({ message: `Registry agent not found` });
+            res.status(200).json({ ...agent.toDictionary(), createdBy: ( agent.createdByUserId && ((await this.#usersAuthService.getUserById(agent.createdByUserId)).username) ) });
+        }));
 
         return router;
     }
