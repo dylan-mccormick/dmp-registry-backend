@@ -15,8 +15,9 @@ import { UsersManagementService } from "./services/UsersManagementService";
 import { RegistryRouterAPI } from "./api/RegistryRouterAPI";
 import { RegistryLifecycleService } from "./services/RegistryLifecycleService";
 import { RegistryActorRoleService } from "./services/RegistryActorRoleService";
+import { RegistryAgentService } from "./services/RegistryAgentService";
 
-export const initAPI = (usersAuthService: UsersAuthService, usersRoleService: UsersRoleService, usersManagementService: UsersManagementService, registryLifecycleService: RegistryLifecycleService, registryActorRoleService: RegistryActorRoleService): Promise<void> => {
+export const initAPI = (usersAuthService: UsersAuthService, usersRoleService: UsersRoleService, usersManagementService: UsersManagementService, registryLifecycleService: RegistryLifecycleService, registryActorRoleService: RegistryActorRoleService, registryAgentService: RegistryAgentService): Promise<void> => {
     return new Promise((resolve, reject) => {
         // rate limiting
         const limiter = rateLimit({
@@ -27,7 +28,7 @@ export const initAPI = (usersAuthService: UsersAuthService, usersRoleService: Us
         const app = express();
 
         // init api services
-        const authenticator = new Authenticator(usersAuthService, usersRoleService, registryLifecycleService, registryActorRoleService);
+        const authenticator = new Authenticator(usersAuthService, usersRoleService, registryLifecycleService, registryActorRoleService, registryAgentService);
 
         app.set('trust proxy', 1);
 
