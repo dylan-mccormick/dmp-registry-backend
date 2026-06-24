@@ -28,7 +28,7 @@ initDB(process.env.DB_API_KEY as string, `http://${process.env.DB_HOST}:${proces
     await verifyUserPermissionsExist(dbApi);
     await verifyRegistryActorPermissionsExist(dbApi);
 
-    initAPI(usersAuthService, usersRoleService, usersManagementService, registryLifecycleService, registryActorRoleService).then(async () => {
+    initAPI(usersAuthService, usersRoleService, usersManagementService, registryLifecycleService, registryActorRoleService, registryAgentService).then(async () => {
         console.log("API initialized successfully.");
 
     }).catch((err) => {
