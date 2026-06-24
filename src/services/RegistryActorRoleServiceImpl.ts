@@ -12,6 +12,7 @@ import { User } from "../model/User";
 import { RegistryAgent } from "../model/RegistryAgent";
 import { DatabaseError } from "../error/DatabaseError";
 import { AxiosError } from "axios";
+import { IllegalArgumentError } from "../error/IllegalArgumentError";
 
 export class RegistryActorRoleServiceImpl implements RegistryActorRoleService {
 
@@ -57,26 +58,36 @@ export class RegistryActorRoleServiceImpl implements RegistryActorRoleService {
         })
     }
 
-    public getAgentRoles(registry: Registry, agent: RegistryAgent): Promise<ActorPermissions[]> {
-        return new Promise((res, rej) => res([]));
+    public async getAgentRoles(registry: Registry, agent: RegistryAgent): Promise<ActorPermissions[]> {
+        return this.#dbApi.get(`/registry/${registry.id}/agents/${agent.id}/permissions`).then(async roles => {
+            return await Promise.all(roles.data.map(({ permission_id }: { permission_id: number }) => this.getActorRoleById(permission_id)));
+        }).catch(err => {
+            console.error("Unable to get a list of actor roles");
+            throw new DatabaseError("Unknown database error", err);
+        });
     }
 
     public async grantUserRole(registry: Registry, user: User, permission: ActorPermissions): Promise<void> {
         const permissionId = await this.getActorPermissionMapping(permission);
-        return this.#dbApi.post(`/users/${user.id}/registry/${registry.id}/permissions/${permissionId}`);
+        return await this.#dbApi.post(`/users/${user.id}/registry/${registry.id}/permissions/${permissionId}`);
     }
 
     public async revokeUserRole(registry: Registry, user: User, permission: ActorPermissions): Promise<void> {
         const permissionId = await this.getActorPermissionMapping(permission);
-        return this.#dbApi.delete(`/users/${user.id}/registry/${registry.id}/permissions/${permissionId}`);
+        return await this.#dbApi.delete(`/users/${user.id}/registry/${registry.id}/permissions/${permissionId}`);
     }
 
-    public grantAgentRole(registry: Registry, agent: RegistryAgent, permission: ActorPermissions): Promise<void> {
-        return new Promise(res => res());
+    public async grantAgentRole(registry: Registry, agent: RegistryAgent, permission: ActorPermissions): Promise<void> {
+        // May only have certain roles
+        if ([ ActorPermissions.MANAGE_USERS, ActorPermissions.READ_AGENTS, ActorPermissions.WRITE_AGENTS ].includes(permission)) throw new IllegalArgumentError(`Role is not permitted for actor`);
+
+        const permissionId = await this.getActorPermissionMapping(permission);
+        return await this.#dbApi.post(`/registry/${registry.id}/agents/${agent.id}/permissions/${permissionId}`);
     }
 
-    public revokeAgentRole(registry: Registry, agent: RegistryAgent, permission: ActorPermissions): Promise<void> {
-        return new Promise(res => res());
+    public async revokeAgentRole(registry: Registry, agent: RegistryAgent, permission: ActorPermissions): Promise<void> {
+        const permissionId = await this.getActorPermissionMapping(permission);
+        return await this.#dbApi.delete(`/registry/${registry.id}/agents/${agent.id}/permissions/${permissionId}`);
     }
 
     public async getUsersWithRole(registry: Registry, permission: ActorPermissions): Promise<User[]> {
@@ -88,10 +99,6 @@ export class RegistryActorRoleServiceImpl implements RegistryActorRoleService {
             console.error("Unable to get a list of users with permission on registry.", err);
             throw new DatabaseError("Unknown permissions error.");
         })
-    }
-
-    public getAgentsWithRole(registry: Registry, permission: ActorPermissions): Promise<RegistryAgent[]> {
-        return new Promise((res, rej) => res([]));
     }
 
 }

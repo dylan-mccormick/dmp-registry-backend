@@ -16,6 +16,8 @@ import { RegistryActorRoleService } from "../services/RegistryActorRoleService";
 import { RegistryLifecycleService } from "../services/RegistryLifecycleService";
 import { RegistryIdQuerySchema } from "./schema/RegistryLifecycleSchema";
 import { Registry } from "../model/Registry";
+import { RegistryAgent } from "../model/RegistryAgent";
+import { RegistryAgentService } from "../services/RegistryAgentService";
 import { IllegalArgumentError } from "../error/IllegalArgumentError";
 
 const JwtPayloadSchema = z.object({
@@ -34,18 +36,31 @@ export interface AuthedRegistryRequest extends AuthedRequest {
     actorPermissions: ActorPermissions[];
 }
 
+export interface AuthedActorRequest extends Request {
+    user?: User;
+    userPermissions?: UserPermissions[];
+    agent?: RegistryAgent;
+}
+
+export interface AuthedRegistryActorRequest extends AuthedActorRequest {
+    registry: Registry;
+    actorPermissions: ActorPermissions[];
+}
+
 export class Authenticator {
 
     readonly #usersAuthService: UsersAuthService;
     readonly #usersRoleService: UsersRoleService;
     readonly #registryLifecycleService: RegistryLifecycleService;
     readonly #registryActorRoleService: RegistryActorRoleService;
+    readonly #registryAgentService: RegistryAgentService;
 
-    constructor(usersAuthService: UsersAuthService, usersRoleService: UsersRoleService, registryLifecycleService: RegistryLifecycleService, registryActorRoleService: RegistryActorRoleService) {
+    constructor(usersAuthService: UsersAuthService, usersRoleService: UsersRoleService, registryLifecycleService: RegistryLifecycleService, registryActorRoleService: RegistryActorRoleService, registryAgentService: RegistryAgentService) {
         this.#usersAuthService = usersAuthService;
         this.#usersRoleService = usersRoleService;
         this.#registryActorRoleService = registryActorRoleService;
         this.#registryLifecycleService = registryLifecycleService;
+        this.#registryAgentService = registryAgentService;
     }
 
     /**
@@ -85,6 +100,33 @@ export class Authenticator {
         next();
 
     };
+
+    public async agentAuthenticate(req: Request, res: Response, next: NextFunction) {
+        const key = req.header("x-api-key");
+        if (!key) return res.status(401).json({ message: `Unauthorized: "X-API-Key" header is missing.` });
+
+        const agent = await this.#registryAgentService.getAgentByHash(key);
+        if (!agent) return res.status(401).json({ message: `Unauthorized: "X-API-Key" header is incorrect.` });
+
+        (req as AuthedActorRequest).agent = agent;
+        next();
+    }
+
+    public async actorAuthenticate(req: Request, res: Response, next: NextFunction) {
+        // Determine if this is an agent
+        if (req.header("x-api-key")) {
+            // agent
+            this.agentAuthenticate(req, res, next);
+            return;
+        }
+
+        if (req.cookies?.["token"]) {
+            this.authenticate(req, res, next);
+            return;
+        }
+
+        res.status(401).json({ error: "Unauthorized: No authentication method provided" });
+    }
 
     public requiredPermissions(permissions: UserPermissions[]): (req: Request, res: Response, next: NextFunction) => void {
         return (req: Request, res: Response, next: NextFunction) => {
@@ -139,6 +181,36 @@ export class Authenticator {
             // assign details
             (authedReq as AuthedRegistryRequest).registry = registry;
             (authedReq as AuthedRegistryRequest).actorPermissions = actorPermissions;
+
+            // verify has permissions
+            if (!permissions.every(p => actorPermissions.includes(p))) {
+                return res.status(403).json({ error: "Forbidden: Insufficient registry permissions" });
+            }
+
+            next();
+        }
+    }
+
+    public requiredRegistryActorPermissions(permissions: ActorPermissions[]): (req: Request, res: Response, next: NextFunction) => void {
+        return async (req: Request, res: Response, next: NextFunction) => {
+            // determine if this is an agent or a user trying to make the request
+            const actorReq = req as AuthedActorRequest;
+
+            if (!actorReq.user && !actorReq.agent) {
+                return res.status(401).json({ error: `Unauthorized: No user or agent authenticated` });
+            }
+
+            // fetch registry
+            const { registryId } = RegistryIdQuerySchema.parse(req.params);
+            const registry = await this.#registryLifecycleService.getRegistryById(registryId);
+            if (!registry) return res.status(404).json({ error: "Registry not found" });
+
+            // fetch actor permissions
+            const actorPermissions = actorReq.user ? await this.#registryActorRoleService.getUserRoles(registry, actorReq.user) : await this.#registryActorRoleService.getAgentRoles(registry, actorReq.agent!);
+
+            // assign details
+            (actorReq as AuthedRegistryActorRequest).registry = registry;
+            (actorReq as AuthedRegistryActorRequest).actorPermissions = actorPermissions;
 
             // verify has permissions
             if (!permissions.every(p => actorPermissions.includes(p))) {
