@@ -30,8 +30,7 @@ initDB(process.env.DB_API_KEY as string, `http://${process.env.DB_HOST}:${proces
 
     initAPI(usersAuthService, usersRoleService, usersManagementService, registryLifecycleService, registryActorRoleService).then(async () => {
         console.log("API initialized successfully.");
-        console.log(await registryActorRoleService.getAgentRoles(await registryLifecycleService.getRegistryById(1), (await registryAgentService.getAgentById(2))!));
-        await registryAgentService.deleteAgent(2);
+
     }).catch((err) => {
         console.error("Failed to initialize API:", err);
         process.exit(1);
