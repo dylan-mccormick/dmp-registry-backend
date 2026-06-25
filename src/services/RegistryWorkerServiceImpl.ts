@@ -56,7 +56,13 @@ export class RegistryWorkerServiceImpl implements RegistryWorkerService {
                 return undefined;
         }})();
 
-        if (!worker) throw new Error("Fatal implementation error: Worker does not exist.");
+        if (!worker) {
+            if (process.env.NODE_ENV == "production") {
+                throw new Error("Fatal implementation error: Worker does not exist.");
+            }
+            console.warn(`Production-warning: Worker for registry ${registry.id} (${registry.type}) is not implemented.`);
+            return;
+        };
 
         await worker.start();
 
@@ -79,7 +85,8 @@ export class RegistryWorkerServiceImpl implements RegistryWorkerService {
     }
 
     public async bulkStartWorkers(registries: Registry[]): Promise<void> {
-        throw new Error("Not implemented");
+        await Promise.all(registries.map(async r => await this.startWorker(r)));
+        return;
     }
 
     public async bulkStopWorkers(registryIds: number[]): Promise<void> {

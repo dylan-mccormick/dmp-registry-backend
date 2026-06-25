@@ -83,9 +83,9 @@ export class RegistryAgentServiceImpl implements RegistryAgentService {
         // verify name not already in use
         await this.#dbApi.get(`/registry/${registryId}/agents?name=${nameCandidate}`).then(r => { throw new IllegalArgumentError(`Registry agent with name already exists`)})
             .catch(err => {
-                if (err instanceof IllegalArgumentError) throw err;
                 if (err instanceof AxiosError && err.status != 404) throw new DatabaseError("Failed to verify the name of the agent", err);
-                return;
+                if (err instanceof AxiosError) return;
+                throw err;
             })
 
         // existence validation
@@ -120,9 +120,9 @@ export class RegistryAgentServiceImpl implements RegistryAgentService {
             if (testAgent.id !== agentId) throw new IllegalArgumentError(`Registry agent with name already exists`);
         })
             .catch(err => {
-                if (err instanceof IllegalArgumentError) throw err;
                 if (err instanceof AxiosError && err.status != 404) throw new DatabaseError("Failed to verify the name of the agent", err);
-                return;
+                if (err instanceof AxiosError) return;
+                throw err;
             })
 
         // change the name
@@ -136,6 +136,7 @@ export class RegistryAgentServiceImpl implements RegistryAgentService {
         const agent = await this.getAgentById(agentId);
         if (!agent) throw new IllegalArgumentError(`Agent with ID ${agentId} does not exist`);
         const key = await this.getNextAgentKey();
+        console.log(key);
 
         // change the key
         await this.#dbApi.put(`/registry/${agent.registryId}/agents/${agentId}`, {
