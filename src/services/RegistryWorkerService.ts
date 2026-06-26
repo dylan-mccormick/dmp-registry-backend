@@ -43,6 +43,14 @@ export interface RegistryWorkerService {
     stopWorker(registryId: number): Promise<boolean>;
 
     /**
+     * Destroys the data directory that the registry data is contained within
+     * Irreversible action. Useful for when after a worker is stopped to delete the registry.
+     * @param registryId the ID of the registry to destroy
+     * @returns a promise that resolves when the registry is destroyed
+     */
+    destroyRegistry(storageLocation: string): Promise<void>;
+
+    /**
      * Bulk starts registry workers for the specified list of registries
      * If any worker fails, all spawned registry workers will be stopped
      * If any registry already has a worker, nothing will happen

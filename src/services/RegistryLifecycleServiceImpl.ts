@@ -16,11 +16,14 @@ import { DatabaseError } from "../error/DatabaseError";
 import { RegistryActorRoleService } from "./RegistryActorRoleService";
 import { User } from "../model/User";
 import { ActorPermissions } from "../model/ActorPermissions";
+import { RegistryWorkerService } from "./RegistryWorkerService";
+import { IllegalStateError } from "../error/IllegalStateError";
 
 export class RegistryLifecycleServiceImpl implements RegistryLifecycleService {
 
     readonly #dbApi: AxiosInstance;
     readonly #registryActorRoleService: RegistryActorRoleService;
+    #registryWorkerService: RegistryWorkerService | undefined;
 
     constructor(dbApi: AxiosInstance, registryActorRoleService: RegistryActorRoleService) {
         this.#dbApi = dbApi;
@@ -28,6 +31,8 @@ export class RegistryLifecycleServiceImpl implements RegistryLifecycleService {
     }
 
     public async createRegistry(name: string, creator: User, type: RegistryType): Promise<Registry> {
+        if (!this.#registryWorkerService) throw new IllegalStateError(`Application has not yet fully initialized.`);
+
         // Validate the name is unique, non-blank and less than 255 characters with no spaces or non-alphanumeric characters
         if (!name || name.trim() === "" || name.length >= 255 || /[^a-zA-Z0-9]/.test(name)) {
             throw new BadRequestError("Invalid registry name.");
@@ -61,11 +66,14 @@ export class RegistryLifecycleServiceImpl implements RegistryLifecycleService {
         const registry = Registry.fromObject(data);
 
         // give the user all actor permissions
-        this.#registryActorRoleService.grantUserRole(registry, creator, ActorPermissions.MANAGE_USERS);
-        this.#registryActorRoleService.grantUserRole(registry, creator, ActorPermissions.READ_AGENTS);
-        this.#registryActorRoleService.grantUserRole(registry, creator, ActorPermissions.WRITE_AGENTS);
-        this.#registryActorRoleService.grantUserRole(registry, creator, ActorPermissions.READ_REGISTRY);
-        this.#registryActorRoleService.grantUserRole(registry, creator, ActorPermissions.WRITE_REGISTRY);
+        await this.#registryActorRoleService.grantUserRole(registry, creator, ActorPermissions.MANAGE_USERS);
+        await this.#registryActorRoleService.grantUserRole(registry, creator, ActorPermissions.READ_AGENTS);
+        await this.#registryActorRoleService.grantUserRole(registry, creator, ActorPermissions.WRITE_AGENTS);
+        await this.#registryActorRoleService.grantUserRole(registry, creator, ActorPermissions.READ_REGISTRY);
+        await this.#registryActorRoleService.grantUserRole(registry, creator, ActorPermissions.WRITE_REGISTRY);
+
+        // start the worker
+        await this.#registryWorkerService.startWorker(registry);
 
         return registry;
     }
@@ -128,11 +136,22 @@ export class RegistryLifecycleServiceImpl implements RegistryLifecycleService {
     }
 
     public async deleteRegistry(registryId: number): Promise<void> {
+        if (!this.#registryWorkerService) throw new IllegalStateError(`Application has not yet fully initialized.`);
+        const registry = await this.getRegistryById(registryId);
+        if (!registry) return;
+
+        await this.#registryWorkerService.stopWorker(registryId);
+        await this.#registryWorkerService.destroyRegistry(registry.storageLocation);
+
         // Idempotent delete
         this.#dbApi.delete(`/registry/${registryId}`).catch(err => {
             console.error("Unknown database API error. ", err);
             throw new DatabaseError("Unknown error.");
         });
+    }
+
+    public setWorkerService(registryWorkerService: RegistryWorkerService) {
+        this.#registryWorkerService = registryWorkerService;
     }
 
 }

@@ -48,6 +48,7 @@ initDB(process.env.DB_API_KEY as string, `http://${process.env.DB_HOST}:${proces
         // Initialize workers
         const routerRegistryService: RouterRegistryService = new RouterRegistryServiceImpl(app);
         const registryWorkerService: RegistryWorkerService = new RegistryWorkerServiceImpl(routerRegistryService, authenticator);
+        registryLifecycleService.setWorkerService(registryWorkerService);
 
         // on close, close all connections
         process.on("SIGHUP", async () => await cleanupRegistryWorkerService(registryWorkerService));
