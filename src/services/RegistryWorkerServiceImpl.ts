@@ -9,12 +9,13 @@ import { Registry } from "../model/Registry";
 import { IllegalStateError } from "../error/IllegalStateError";
 import { RegistryType } from "../model/RegistryType";
 import { KeyValueWorker } from "../model/workers/KeyValueWorker";
-import { Router } from "express";
 import { Authenticator } from "../api/Authenticator";
 import { RouterRegistryService } from "./RouterRegistryService";
 import { FilesystemWorker } from "../model/workers/FilesystemWorker";
 import { MongoDBWorker } from "../model/workers/MongoDBWorker";
 import { SQLiteWorker } from "../model/workers/SQLiteWorker";
+import { rm } from "fs/promises";
+import path from "path";
 
 export class RegistryWorkerServiceImpl implements RegistryWorkerService {
 
@@ -29,6 +30,10 @@ export class RegistryWorkerServiceImpl implements RegistryWorkerService {
         this.#routerRegistryService = routerRegistryService;
         this.#workers = new Map<number, RegistryWorker>();
         this.#authenticator = authenticator;
+
+        if (!(typeof process.env.STORAGE_ROOT_LOCATION == "string")) {
+            throw new IllegalStateError(`Tried to start RegistryWorkerService without a storage root location.`);
+        }
     }
 
     public getActiveRegistryIds(): number[] {
@@ -85,6 +90,10 @@ export class RegistryWorkerServiceImpl implements RegistryWorkerService {
         await this.#workers.get(registryId)?.stop();
 
         return true;
+    }
+
+    public async destroyRegistry(storageLocation: string): Promise<void> {
+        await rm(path.join(process.env.STORAGE_ROOT_LOCATION!, storageLocation), { recursive: true });
     }
 
     public async bulkStartWorkers(registries: Registry[]): Promise<void> {

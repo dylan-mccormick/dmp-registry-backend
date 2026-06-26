@@ -11,7 +11,7 @@ import { User } from "../model/User";
 export interface RegistryLifecycleService {
 
     /**
-     * Creates a new registry with the given parameters.
+     * Creates a new registry with the given parameters, then starts the registry worker.
      * - The name must be unique, non-blank, and less than 255 characters.
      * - The name must not contain spaces or non-alphanumeric characters.
      * - The storage location is derived automatically and should not be provided by the caller.
@@ -60,7 +60,7 @@ export interface RegistryLifecycleService {
     changeRegistryName(registry: Registry, newName: string): Promise<Registry>;
 
     /**
-     * Deletes a registry from the system.
+     * Stops the worker, then deletes the registry from the system.
      * If the registry does not exist, this method should do nothing.
      * @param registryId the id of the registry to delete
      */
