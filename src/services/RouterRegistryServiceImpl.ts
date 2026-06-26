@@ -6,6 +6,7 @@
 import { Application, Router } from "express";
 import { RouterRegistryService } from "./RouterRegistryService";
 import { IllegalStateError } from "../error/IllegalStateError";
+import errorHandler from "../api/errorHandler";
 
 export class RouterRegistryServiceImpl implements RouterRegistryService {
 
@@ -34,6 +35,7 @@ export class RouterRegistryServiceImpl implements RouterRegistryService {
         if (this.#routes.get(route) && this.#routes.get(route) !== this.#blankRouter) throw new IllegalStateError(`Attempt to establish route ${route} while already in use`);
 
         // create the route
+        router.use(errorHandler);
         this.#routes.set(route, router);
     }
 
