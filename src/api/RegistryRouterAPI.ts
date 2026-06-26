@@ -248,6 +248,7 @@ export class RegistryRouterAPI {
                     }
                 }
                 res.status(500).json("Failed to create the registry agent");
+                console.error("Failed to create the registry agent", err);
             }
         }))
 
@@ -266,8 +267,9 @@ export class RegistryRouterAPI {
                     } else if (err.message.includes("does not exist")) {
                         return res.status(404).json({ message: "Agent with that ID does not exist" });
                     }
-                    res.status(500).json({ message: "Failed to update the registry agent" });
                 }
+                res.status(500).json({ message: "Failed to update the registry agent" });
+                console.error("Failed to update the registry agent", err);
             }
         }));
 
@@ -291,8 +293,9 @@ export class RegistryRouterAPI {
                     if (err.message.includes("does not exist")) {
                         return res.status(404).json({ message: "Agent with that ID does not exist" });
                     }
-                    res.status(500).json({ message: "Failed to update the registry agent" });
                 }
+                res.status(500).json({ message: "Failed to update the registry agent" });
+                console.error("Failed to update the registry agent", err);
             }
         }));
 

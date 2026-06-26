@@ -54,6 +54,15 @@ initDB(process.env.DB_API_KEY as string, `http://${process.env.DB_HOST}:${proces
         process.on("SIGINT", async () => await cleanupRegistryWorkerService(registryWorkerService));
         process.on("SIGTERM", async () => await cleanupRegistryWorkerService(registryWorkerService));
 
+        // spawn all worker processes
+        const registries = await registryLifecycleService.getRegistries();
+        registryWorkerService.bulkStartWorkers(registries).then(() => {
+            console.log("All registry workers started.");
+        }).catch(err => {
+            console.error("Registry workers failed to start:", err);
+            process.exit(1);
+        })
+
     }).catch((err) => {
         console.error("Failed to initialize API:", err);
         process.exit(1);
