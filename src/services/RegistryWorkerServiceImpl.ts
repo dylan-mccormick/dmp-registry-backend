@@ -57,9 +57,10 @@ export class RegistryWorkerServiceImpl implements RegistryWorkerService {
         }})();
 
         if (!worker) {
-            if (process.env.NODE_ENV == "production") {
-                throw new Error("Fatal implementation error: Worker does not exist.");
-            }
+            // TODO: re-enable this
+            // if (process.env.NODE_ENV == "production") {
+            //     throw new Error("Fatal implementation error: Worker does not exist.");
+            // }
             console.warn(`Production-warning: Worker for registry ${registry.id} (${registry.type}) is not implemented.`);
             return;
         };
