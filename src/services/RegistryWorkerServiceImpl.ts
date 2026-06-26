@@ -12,6 +12,9 @@ import { KeyValueWorker } from "../model/workers/KeyValueWorker";
 import { Router } from "express";
 import { Authenticator } from "../api/Authenticator";
 import { RouterRegistryService } from "./RouterRegistryService";
+import { FilesystemWorker } from "../model/workers/FilesystemWorker";
+import { MongoDBWorker } from "../model/workers/MongoDBWorker";
+import { SQLiteWorker } from "../model/workers/SQLiteWorker";
 
 export class RegistryWorkerServiceImpl implements RegistryWorkerService {
 
@@ -43,13 +46,13 @@ export class RegistryWorkerServiceImpl implements RegistryWorkerService {
         const worker: RegistryWorker | undefined = (() => {switch (registry.type) {
             case RegistryType.files:
                 // TODO
-                return undefined;
+                return new FilesystemWorker(registry);
             case RegistryType.mongoDB:
                 // TODO
-                return undefined;
+                return new MongoDBWorker(registry);
             case RegistryType.sqlite:
                 // TODO
-                return undefined;
+                return new SQLiteWorker(registry);
             case RegistryType.keyValue:
                 return new KeyValueWorker(registry);
             default:
@@ -57,10 +60,9 @@ export class RegistryWorkerServiceImpl implements RegistryWorkerService {
         }})();
 
         if (!worker) {
-            // TODO: re-enable this
-            // if (process.env.NODE_ENV == "production") {
-            //     throw new Error("Fatal implementation error: Worker does not exist.");
-            // }
+            if (process.env.NODE_ENV == "production") {
+                throw new Error("Fatal implementation error: Worker does not exist.");
+            }
             console.warn(`Production-warning: Worker for registry ${registry.id} (${registry.type}) is not implemented.`);
             return;
         };
