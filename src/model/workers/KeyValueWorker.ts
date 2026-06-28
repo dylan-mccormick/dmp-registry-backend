@@ -20,6 +20,8 @@ enum AllowedTypes {
     STRING = "string",
     NUMBER = "number",
     BOOLEAN = "boolean",
+    DATE = "date",
+    TIME = "time",
     DATETIME = "datetime"
 };
 
@@ -62,6 +64,10 @@ const coerceDatatype = (input: string, type: AllowedTypes) => {
                 }).parse(input);
         case AllowedTypes.DATETIME:
             return z.coerce.date().parse(input);
+        case AllowedTypes.DATE:
+            return z.iso.date().parse(input);
+        case AllowedTypes.TIME:
+            return z.iso.time().parse(input);
     }
 }
 
@@ -118,7 +124,7 @@ export class KeyValueWorker extends RegistryWorker {
         `CREATE TABLE IF NOT EXISTS data (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             key VARCHAR(64) NOT NULL UNIQUE,
-            datatype VARCHAR(16) NOT NULL CHECK (datatype IN ('string', 'number', 'boolean', 'datetime')),
+            datatype VARCHAR(16) NOT NULL CHECK (datatype IN ('string', 'number', 'boolean', 'date', 'time', 'datetime')),
             value VARCHAR(255) NOT NULL
         );`);
 
