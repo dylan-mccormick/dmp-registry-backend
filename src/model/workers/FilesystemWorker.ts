@@ -98,7 +98,7 @@ export class FilesystemWorker extends RegistryWorker {
     }
 
     public stop(): Promise<void> {
-        // TODO: implement
+        // does nothing
         return Promise.resolve();
     }
 
