@@ -56,7 +56,12 @@ export const initAPI = (usersAuthService: UsersAuthService, usersRoleService: Us
         app.use(cookieParser());
         app.use(morgan("combined"));
         app.use(bodyParser.urlencoded({ extended: false }));
-        app.use(bodyParser.json());
+        app.use((req, res, next) => {
+            if (req.path.includes('/files/') && req.path.endsWith('/raw')) {
+                return next();
+            }
+            bodyParser.json()(req, res, next);
+        });
         app.use(limiter);
 
         // register routes
