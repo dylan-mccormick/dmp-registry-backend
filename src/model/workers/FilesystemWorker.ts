@@ -102,7 +102,7 @@ export class FilesystemWorker extends RegistryWorker {
         return Promise.resolve();
     }
 
-    private async writeFileAtPath(content: string | NodeJS.ArrayBufferView, rootStorage: string, filePath: string, res: Response): Promise<boolean> {
+    private async writeFileAtPath(content: string | NodeJS.ArrayBufferView | null, rootStorage: string, filePath: string, res: Response, directoryOnly?: boolean): Promise<boolean> {
         // prevent path traversal
         const resolved = path.resolve(rootStorage, filePath);
         if (!resolved.startsWith(rootStorage)) {
@@ -110,8 +110,14 @@ export class FilesystemWorker extends RegistryWorker {
             return false;
         }
 
-        await mkdir(path.dirname(resolved), { recursive: true });
-        await writeFile(resolved, content);
+        // validate words
+        if ((["/hierarchy", "/raw", "/files"]).some(c => resolved.toLowerCase().includes(c))) {
+            res.status(403).json({ message: "Illegal word detected" });
+            return false;
+        }
+
+        await mkdir(directoryOnly ? resolved : path.dirname(resolved), { recursive: true });
+        if (!directoryOnly && content != null) await writeFile(resolved, content);
 
         return true;
     }
@@ -133,6 +139,7 @@ export class FilesystemWorker extends RegistryWorker {
         // get file
         router.get(`/files/*filepath`, actorAuthenticate, requiredRegistryActorPermissions([ ActorPermissions.READ_REGISTRY ]), asyncHandler(async (req: AuthedActorRequest, res: Response) => {
             const filePath = req.params.filepath;
+            const download = req.query.download === 'true';
             if (!filePath || typeof filePath != "object") return res.status(400).json({ message: "Invalid file path" });
 
             // prevent path traversal
@@ -159,6 +166,13 @@ export class FilesystemWorker extends RegistryWorker {
                 }
             }
 
+            // decide if we should download or just open the file, for frontend
+            if (download) {
+                res.setHeader('Content-Disposition', `attachment; filename="${path.basename(resolved)}"`);
+            } else {
+                res.setHeader('Content-Disposition', 'inline');
+            }
+
             try {
                 await fs.readFile(resolved); // verify path exists
                 res.status(200).sendFile(resolved);
@@ -177,10 +191,11 @@ export class FilesystemWorker extends RegistryWorker {
         // upload via multipart
         router.put(`/files/*filepath`, actorAuthenticate, requiredRegistryActorPermissions([ ActorPermissions.WRITE_REGISTRY ]), upload.single("file"), asyncHandler(async (req: AuthedActorRequest, res: Response) => {
             const filePath = req.params.filepath;
+            const isDirectory = req.query.directory === "true";
             if (!filePath || typeof filePath != "object") return res.status(400).json({ message: "Invalid file path" });
 
-            if (!req.file) return res.status(400).json({ message: "File is missing" });
-            if (await this.writeFileAtPath(req.file.buffer, rootStorage, filePath.join("/"), res)) res.status(201).json({ message: "Successfully uploaded file" });
+            if (!req.file && !isDirectory) return res.status(400).json({ message: "File is missing" });
+            if (await this.writeFileAtPath(isDirectory ? null : req.file!.buffer, rootStorage, filePath.join("/"), res, isDirectory)) res.status(201).json({ message: "Successfully uploaded file" });
         }));
 
         // delete
