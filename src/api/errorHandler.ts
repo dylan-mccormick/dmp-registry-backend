@@ -9,6 +9,11 @@ const errorHandler = (err: Error, req: Request, res: Response, next: NextFunctio
         return res.status(400).json({ error: "Invalid request data", details: err.flatten() });
     }
 
+    // SyntaxError: BodyParser JSON failed
+    if (err instanceof SyntaxError) {
+        return res.status(400).json({ error: "Failed to parse request. Is the body valid JSON?" });
+    }
+
     // UnauthorizedError: Just return the error message without exposing internal details
     if (err instanceof WebRequestError) {
         return res.status(err.errorStatus).json({ error: err.message });
