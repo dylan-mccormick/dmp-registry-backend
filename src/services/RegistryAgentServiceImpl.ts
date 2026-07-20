@@ -136,7 +136,6 @@ export class RegistryAgentServiceImpl implements RegistryAgentService {
         const agent = await this.getAgentById(agentId);
         if (!agent) throw new IllegalArgumentError(`Agent with ID ${agentId} does not exist`);
         const key = await this.getNextAgentKey();
-        console.log(key);
 
         // change the key
         await this.#dbApi.put(`/registry/${agent.registryId}/agents/${agentId}`, {
