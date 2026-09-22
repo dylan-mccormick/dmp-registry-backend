@@ -38,7 +38,7 @@ export const initAPI = (usersAuthService: UsersAuthService, usersRoleService: Us
                 if (!origin) return callback(null, true);
 
                 const allowed = [
-                    /^https:\/\/.*\.mnmzc\.us\.to$/,
+                    /^https:\/\/.*\.mnmzc\.dev$/,
                     /^http:\/\/localhost(:\d+)?$/,
                     /^http:\/\/192\.168\.\d+\.\d+(:\d+)?$/
                 ];
