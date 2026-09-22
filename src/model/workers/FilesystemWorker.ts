@@ -341,6 +341,7 @@ export class FilesystemWorker extends RegistryWorker {
         }));
 
         // delete
+        // comment to refresh
         router.delete(`/files/*filepath`, actorAuthenticate, requiredRegistryActorPermissions([ ActorPermissions.WRITE_REGISTRY ]), asyncHandler(async (req: AuthedActorRequest, res: Response) => {
             const filePath = req.params.filepath;
             if (!filePath || typeof filePath != "object") return res.status(400).json({ message: "Invalid file path" });
