@@ -238,10 +238,11 @@ export class FilesystemWorker extends RegistryWorker {
                         createdAt: stats.birthtime,
                         modifiedAt: stats.mtime,
                         accessedAt: stats.atime,
-                        isPublic: await this.isFilePublic(targetFilePath)
+                        isPublic: await this.isFilePublic(path.relative(rootStorage, targetFilePath))
                     })
                 } catch (err: any) {
                     if (!handleFsError(err, res)) throw err;
+                    return;
                 }
             }
 
