@@ -52,7 +52,14 @@ export const initAPI = (usersAuthService: UsersAuthService, usersRoleService: Us
             credentials: true
         }));
 
-        app.use(helmet());
+        app.use(helmet({
+            contentSecurityPolicy: {
+                directives: {
+                ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+                "connect-src": ["'self'", "https://*.mnmzc.dev"],
+                }
+            }
+            }))
         app.use(cookieParser());
         app.use(morgan("combined"));
         app.use(bodyParser.urlencoded({ extended: false }));
