@@ -19,6 +19,9 @@ import Database, { RunResult } from "better-sqlite3";
 import { DatabaseError } from "../../error/DatabaseError";
 import z from "zod";
 
+const pathExists = (loc: string): Promise<boolean> =>
+    fs.access(loc).then(() => true, () => false);
+
 // File Hierarchy Information
 interface FSNode { name: string; type: "file" | "directory"; children?: FSNode[]; };
 
@@ -99,8 +102,11 @@ export class FilesystemWorker extends RegistryWorker {
     }
 
     private async addFileRecord(filePath: string): Promise<void> {
-        await this.dbExecute(`DELETE FROM files WHERE path = ?`, [ filePath ]);
-        await this.dbExecute(`INSERT INTO files (path) VALUES (?)`, [ filePath ]);
+        // keep the existing record (and its is_public flag) when overwriting a file
+        await this.dbExecute(
+            `INSERT INTO files (path) SELECT ? WHERE NOT EXISTS (SELECT 1 FROM files WHERE path = ?)`,
+            [ filePath, filePath ]
+        );
     }
 
     private async isFilePublic(filePath: string): Promise<boolean> {
@@ -309,12 +315,15 @@ export class FilesystemWorker extends RegistryWorker {
             if (!filePath || typeof filePath != "object") return res.status(400).json({ message: "Invalid file path" });
 
             const filePathString = filePath.join("/");
+            const resolved = path.resolve(rootStorage, filePathString);
+            const existed = await pathExists(resolved);
             if (await this.writeFileAtPath(req.body, rootStorage, filePathString, res)) {
                 try {
                     await this.addFileRecord(filePathString);
                     res.status(201).json({ message: "Successfully uploaded file" });
                 } catch (err) {
-                    await unlink(path.resolve(rootStorage, filePathString)).catch(() => undefined);
+                    // only clean up files this request created, never ones that were being overwritten
+                    if (!existed) await unlink(resolved).catch(() => undefined);
                     throw err;
                 }
             }
@@ -329,13 +338,15 @@ export class FilesystemWorker extends RegistryWorker {
             if (!req.file && !isDirectory) return res.status(400).json({ message: "File is missing" });
 
             const filePathString = filePath.join("/");
+            const resolved = path.resolve(rootStorage, filePathString);
+            const existed = await pathExists(resolved);
             if (await this.writeFileAtPath(isDirectory ? null : req.file!.buffer, rootStorage, filePathString, res, isDirectory)) {
                 try {
                     if (!isDirectory) await this.addFileRecord(filePathString);
                     res.status(201).json({ message: "Successfully uploaded file" });
                 } catch (err) {
-                    const resolved = path.resolve(rootStorage, filePathString);
-                    await rm(resolved, { recursive: isDirectory }).catch(() => undefined);
+                    // only clean up files this request created, never ones that were being overwritten
+                    if (!existed) await rm(resolved, { recursive: isDirectory }).catch(() => undefined);
                     throw err;
                 }
             }
