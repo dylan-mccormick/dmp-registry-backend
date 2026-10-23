@@ -49,4 +49,13 @@ export abstract class RegistryWorker {
      */
     public abstract stop(): Promise<void>;
 
+    /**
+     * Permanently deletes any data the worker keeps outside the registry's storage directory.
+     * Called once, before the worker is stopped, when the registry is deleted.
+     * @returns a promise that resolves once the data is gone
+     */
+    public destroy(): Promise<void> {
+        return Promise.resolve();
+    }
+
 }

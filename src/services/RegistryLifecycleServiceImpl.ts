@@ -140,6 +140,7 @@ export class RegistryLifecycleServiceImpl implements RegistryLifecycleService {
         const registry = await this.getRegistryById(registryId);
         if (!registry) return;
 
+        await this.#registryWorkerService.getWorkerForRegistry(registryId)?.destroy();
         await this.#registryWorkerService.stopWorker(registryId);
         await this.#registryWorkerService.destroyRegistry(registry.storageLocation);
 

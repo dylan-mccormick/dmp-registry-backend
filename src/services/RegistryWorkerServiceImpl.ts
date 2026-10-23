@@ -50,13 +50,10 @@ export class RegistryWorkerServiceImpl implements RegistryWorkerService {
         // Start specific worker
         const worker: RegistryWorker | undefined = (() => {switch (registry.type) {
             case RegistryType.files:
-                // TODO
                 return new FilesystemWorker(registry);
             case RegistryType.mongoDB:
-                // TODO
                 return new MongoDBWorker(registry);
             case RegistryType.sqlite:
-                // TODO
                 return new SQLiteWorker(registry);
             case RegistryType.keyValue:
                 return new KeyValueWorker(registry);
@@ -84,10 +81,12 @@ export class RegistryWorkerServiceImpl implements RegistryWorkerService {
     }
 
     public async stopWorker(registryId: number): Promise<boolean> {
-        if (!this.#workers.get(registryId)) Promise.resolve(false);
+        const worker = this.#workers.get(registryId);
+        if (!worker) return false;
 
         this.#routerRegistryService.unassign(`/r/${registryId}/api/v1`);
-        await this.#workers.get(registryId)?.stop();
+        await worker.stop();
+        this.#workers.delete(registryId);
 
         return true;
     }
