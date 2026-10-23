@@ -16,6 +16,7 @@ No test suite, linter, or formatter is configured. Use `npx tsc --noEmit` to typ
 
 - `src/index.ts` hardcodes `DEV_ENV = true`, which loads `.env.dev`. Set it to `false` to load `.env.prod`.
 - Required env vars: `DB_API_KEY`, `DB_HOST`, `DB_PORT`, `JWT_SECRET`, `NODE_ENV`, `PORT`, `STORAGE_ROOT_LOCATION`.
+- Optional: `MONGO_URL` (e.g. `mongodb://mongo:27017`). Without it, MongoDB registries still start but their routes return 503.
 - **This service has no database of its own for users/registries/permissions.** All of that state lives in a separate database HTTP API at `http://$DB_HOST:$DB_PORT/api/v1`, called through an Axios instance (`dbApi`, created in `initDB.ts`) that sends an `x-api-key` header. That API must be running for the app to start.
 - Per-registry data is stored on local disk under `$STORAGE_ROOT_LOCATION/registries/<uuid>/`, mostly in a per-registry SQLite file (`better-sqlite3`).
 - Deployment: every push to `main` builds a Docker image, pushes it to GHCR, and redeploys it to the VM over SSH (`.github/workflows/deploy.yml`). Pushing to `main` deploys to production.
@@ -56,6 +57,9 @@ Request types are `AuthedRequest`, `AuthedRegistryRequest`, `AuthedActorRequest`
 - Implemented workers:
   - `KeyValueWorker`: a SQLite `data` table.
   - `FilesystemWorker`: files on disk under `<storage>/files/`, plus a SQLite `files` table that tracks metadata such as `is_public`. It serves `/hierarchy`, `/files/*filepath` (multipart upload or `/raw` body), and the unauthenticated `/public/*filepath`. Every path goes through `validateFilePath`.
-- `MongoDBWorker` and `SQLiteWorker` are stubs.
+  - `SQLiteWorker`: user-defined STRICT tables in a per-registry SQLite file, each with an auto `id INTEGER PRIMARY KEY`. Routes: `/tables` (list/create), `/tables/:table` (drop), `/tables/:table/rows[/:rowId]` (page/insert/update/delete). Table/column names are regex-validated identifiers that get quoted into SQL. There is deliberately no raw-SQL route: queries run synchronously on the API process, and `ATTACH`/`VACUUM INTO` can reach other files.
+  - `MongoDBWorker`: one database per registry (`dmp_registry_<id>`) on a shared lazily-connected client (`src/mongo.ts`). Routes: `/collections[/:collection]`, `/collections/:collection/documents[/:documentId]`. Documents and filters use relaxed Extended JSON; `$where`, `$function` and `$accumulator` are rejected anywhere in a request.
+- A worker whose `start()` throws takes down the whole API (startup calls `process.exit(1)`), so workers that depend on external services must start even when the service is down.
+- `RegistryWorker.destroy()` (no-op by default) runs before `stop()` when a registry is deleted; override it to remove data kept outside the storage directory (MongoDB drops its database).
 - `initAPI.ts` skips the global JSON body parser for paths matching `/files/.../raw` so that raw uploads reach `express.raw`. Keep that in mind when adding body-handling routes.
 - Creating a registry stores its record in the DB API, gives the creator every `ActorPermissions` value, and starts its worker. Deleting a registry stops the worker and runs `rm -rf` on its storage directory.
