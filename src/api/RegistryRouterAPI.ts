@@ -11,6 +11,7 @@ import { UserIdQuerySchema, UserPasswordOnlyQuerySchema, UserSearchQuerySchema }
 import { RegistryAgentService } from "../services/RegistryAgentService";
 import { AgentIdQuerySchema, AgentPermissionsSchema, CreateAgentSchema } from "./schema/AgentLifecycleSchema";
 import { IllegalArgumentError } from "../error/IllegalArgumentError";
+import { Registry } from "../model/Registry";
 
 export class RegistryRouterAPI {
     readonly #registryLifecycleService: RegistryLifecycleService;
@@ -33,6 +34,24 @@ export class RegistryRouterAPI {
 
 
 
+    // Shape registries for list responses, resolving each owner's username once
+    async #summarizeRegistries(registries: Registry[]) {
+        const ownerNames = new Map<number, Promise<string | null>>();
+        const ownerName = (id: number) => {
+            if (!ownerNames.has(id)) ownerNames.set(id, this.#usersAuthService.getUserById(id).then(u => u.username).catch(() => null));
+            return ownerNames.get(id)!;
+        };
+
+        return Promise.all(registries.map(async r => ({
+            id: r.id,
+            name: r.name,
+            type: r.type,
+            ownerId: r.createdByUserId ?? null,
+            owner: r.createdByUserId ? await ownerName(r.createdByUserId) : null,
+            createdAt: r.createdAt
+        })));
+    }
+
     public registerRoutes(): Router {
         const router = Router();
 
@@ -50,6 +69,27 @@ export class RegistryRouterAPI {
                     createdAt: r.createdAt
                 }
             )));
+            res.status(200).json(result);
+        }))
+
+        // Get every registry in the system (admin)
+        router.get("/list/all", this.#authenticate, this.#requiredPermissions([ UserPermissions.MANAGE_USERS ]), asyncHandler(async (req: AuthedRequest, res: Response) => {
+            const registries = await this.#registryLifecycleService.getRegistries();
+            res.status(200).json(await this.#summarizeRegistries(registries));
+        }))
+
+        // Get the registries a specific user can access, with their permissions in each (admin)
+        router.get("/list/user/:userId", this.#authenticate, this.#requiredPermissions([ UserPermissions.MANAGE_USERS ]), asyncHandler(async (req: AuthedRequest, res: Response) => {
+            const { userId } = UserIdQuerySchema.parse(req.params);
+            const user = await this.#usersAuthService.getUserById(userId);
+            if (!user) return res.status(404).json({ message: "User not found" });
+
+            const registries = await this.#registryLifecycleService.getRegistriesForUser(user.id);
+            const summaries = await this.#summarizeRegistries(registries);
+            const result = await Promise.all(registries.map(async (r, i) => ({
+                ...summaries[i],
+                permissions: await this.#registryActorRoleService.getUserRoles(r, user)
+            })));
             res.status(200).json(result);
         }))
 
