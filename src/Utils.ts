@@ -1,4 +1,4 @@
-import { getRandomValues } from "crypto";
+import { createHash, getRandomValues } from "crypto";
 import { Request, Response, NextFunction } from "express";
 
 export const asyncHandler = (fn: Function) => (req: Request, res: Response, next: NextFunction) => {
@@ -16,3 +16,11 @@ export const generateSecureAlphanumeric = (length: number): string => {
     }
     return result;
 }
+
+/**
+ * Hashes an agent API key for storage. Keys are 128 random characters, so a fast hash is enough
+ * and lets the stored value be looked up directly.
+ * @param key the raw agent key
+ * @returns the SHA-256 hex digest of the key (64 characters)
+ */
+export const hashAgentKey = (key: string): string => createHash("sha256").update(key).digest("hex");

@@ -40,6 +40,10 @@ initDB(process.env.DB_API_KEY as string, `http://${process.env.DB_HOST}:${proces
     await verifyUserPermissionsExist(dbApi);
     await verifyRegistryActorPermissionsExist(dbApi);
 
+    // hash any agent keys stored raw before hashing was added, before agents can authenticate
+    const migratedKeys = await registryAgentService.migrateUnhashedKeys((await registryLifecycleService.getRegistries()).map(r => r.id));
+    if (migratedKeys > 0) console.log(`Hashed ${migratedKeys} stored agent key(s).`);
+
     const authenticator = new Authenticator(usersAuthService, usersRoleService, registryLifecycleService, registryActorRoleService, registryAgentService);
 
     initAPI(usersAuthService, usersRoleService, usersManagementService, registryLifecycleService, registryActorRoleService, registryAgentService).then(async app => {

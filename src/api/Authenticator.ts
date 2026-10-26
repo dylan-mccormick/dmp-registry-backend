@@ -105,7 +105,7 @@ export class Authenticator {
         const key = req.header("x-api-key");
         if (!key) return res.status(401).json({ message: `Unauthorized: "X-API-Key" header is missing.` });
 
-        const agent = await this.#registryAgentService.getAgentByHash(key);
+        const agent = await this.#registryAgentService.getAgentByKey(key);
         if (!agent) return res.status(401).json({ message: `Unauthorized: "X-API-Key" header is incorrect.` });
 
         (req as AuthedActorRequest).agent = agent;

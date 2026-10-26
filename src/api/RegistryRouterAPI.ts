@@ -278,8 +278,9 @@ export class RegistryRouterAPI {
             // try to create the new agent
             const { name } = CreateAgentSchema.parse(req.body);
             try {
-                const newAgent = await this.#registryAgentService.createAgent(req.registry.id, name, req.user.id);
-                res.status(201).json({ ...(newAgent.toDictionary()), keyHash: newAgent.keyHash, createdBy: await this.#usersAuthService.getUserById(req.user.id) });
+                const { agent: newAgent, key } = await this.#registryAgentService.createAgent(req.registry.id, name, req.user.id);
+                // the frontend reads the new raw key from `keyHash`, so the field name stays
+                res.status(201).json({ ...(newAgent.toDictionary()), keyHash: key, createdBy: await this.#usersAuthService.getUserById(req.user.id) });
             } catch (err) {
                 if (err instanceof IllegalArgumentError) {
                     if (err.message.includes("name already exists")) {
