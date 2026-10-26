@@ -28,6 +28,14 @@ export interface RegistryAgentService {
     getAgentByHash(hash: string): Promise<RegistryAgent | undefined>;
 
     /**
+     * Gets a registry agent by its raw API key, by hashing the key and looking up the hash
+     * @param key the raw API key the agent sent
+     * @returns a promise of the registry agent if found, or undefined
+     * @throws { DatabaseError } if the database fails
+     */
+    getAgentByKey(key: string): Promise<RegistryAgent | undefined>;
+
+    /**
      * Gets a list of registry agents for a particular registry, by the ID of the registry
      * @param registryId the ID of the registry to get agents for
      * @returns a promise of a list of registry agents
@@ -42,14 +50,15 @@ export interface RegistryAgentService {
      * - The name of the registry agent must not already be in use for that registry
      * - The creator of the registry agent must exist (by ID)
      * - The registry must exist (by ID)
+     * Only the hash of the agent's key is stored, so the raw key is returned here and can't be recovered later.
      * @param registryId the ID of the registry that the agent is for
      * @param name the name of the registry agent
      * @param creatorId the ID of the user who created the agent
-     * @returns a promise that resolves to the newly created registry agent
+     * @returns a promise that resolves to the newly created registry agent and its raw key
      * @throws { IllegalArgumentError } if the name is invalid, or the registry/creator does not exist
      * @throws { DatabaseError } if the database fails
      */
-    createAgent(registryId: number, name: string, creatorId: number): Promise<RegistryAgent>;
+    createAgent(registryId: number, name: string, creatorId: number): Promise<{ agent: RegistryAgent, key: string }>;
 
     /**
      * Updates a registry agent's name
@@ -64,9 +73,9 @@ export interface RegistryAgentService {
     updateAgentName(agentId: number, name: string): Promise<void>;
 
     /**
-     * Updates a registry agent's key-hash. Particularly, the hash will be regenerated then returned
+     * Regenerates a registry agent's key. The new key's hash is stored and the raw key is returned
      * @param agentId the ID of the registry agent to update
-     * @returns a promise that resolves to the new key hash
+     * @returns a promise that resolves to the new raw key
      * @throws { IllegalArgumentError } if the agent does not exist
      * @throws { DatabaseError } if the database fails
      */
@@ -78,4 +87,13 @@ export interface RegistryAgentService {
      * @throws { DatabaseError } if the database fails
      */
     deleteAgent(agentId: number): Promise<void>;
+
+    /**
+     * Hashes any agent keys that are still stored raw (128 characters, from before keys were hashed).
+     * Safe to run on every startup: already-hashed keys are skipped.
+     * @param registryIds the IDs of the registries whose agents to check
+     * @returns a promise that resolves to the number of keys hashed
+     * @throws { DatabaseError } if the database fails
+     */
+    migrateUnhashedKeys(registryIds: number[]): Promise<number>;
 }

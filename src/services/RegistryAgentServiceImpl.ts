@@ -11,8 +11,11 @@ import { UsersAuthService } from "./UsersAuthService";
 import { RegistryLifecycleService } from "./RegistryLifecycleService";
 import { DatabaseError } from "../error/DatabaseError";
 import { IllegalArgumentError } from "../error/IllegalArgumentError";
-import { generateSecureAlphanumeric } from "../Utils";
+import { generateSecureAlphanumeric, hashAgentKey } from "../Utils";
 import { AxiosError } from "axios";
+
+// Keys stored before hashing are the raw 128-character key; hashes are 64 hex characters.
+const UNHASHED_KEY_LENGTH = 128;
 
 export class RegistryAgentServiceImpl implements RegistryAgentService {
 
@@ -34,7 +37,7 @@ export class RegistryAgentServiceImpl implements RegistryAgentService {
 
     private async getNextAgentKey(): Promise<string> {
         const candidate = generateSecureAlphanumeric(128);
-        if (await this.getAgentByHash(candidate)) return this.getNextAgentKey();
+        if (await this.getAgentByKey(candidate)) return this.getNextAgentKey();
         return Promise.resolve(candidate);
     }
 
@@ -67,6 +70,10 @@ export class RegistryAgentServiceImpl implements RegistryAgentService {
         })
     }
 
+    public async getAgentByKey(key: string): Promise<RegistryAgent | undefined> {
+        return this.getAgentByHash(hashAgentKey(key));
+    }
+
     public async getAgentsInRegistry(registryId: number): Promise<RegistryAgent[]> {
         return this.#dbApi.get(`/registry/${registryId}/agents`).then(res => {
             return res.data.map((r: any) => this.coerceRegistryResponseToDomainObject(r));
@@ -75,7 +82,7 @@ export class RegistryAgentServiceImpl implements RegistryAgentService {
         })
     }
 
-    public async createAgent(registryId: number, name: string, creatorId: number): Promise<RegistryAgent> {
+    public async createAgent(registryId: number, name: string, creatorId: number): Promise<{ agent: RegistryAgent, key: string }> {
         // name validation
         const nameCandidate = name.trim();
         if (nameCandidate.length > 255 || nameCandidate.length < 1) throw new IllegalArgumentError(`Registry agent name out of bounds`);
@@ -98,9 +105,9 @@ export class RegistryAgentServiceImpl implements RegistryAgentService {
         const key = await this.getNextAgentKey();
         return this.#dbApi.post(`/registry/${registryId}/agents`, {
             name: nameCandidate,
-            key_hash: key,
+            key_hash: hashAgentKey(key),
             created_by_user_id: creatorId
-        }).then(res => this.coerceRegistryResponseToDomainObject(res.data))
+        }).then(res => ({ agent: this.coerceRegistryResponseToDomainObject(res.data), key }))
           .catch(err => {
             throw new DatabaseError(`Failed to create the registry agent`, err);
         })
@@ -139,7 +146,7 @@ export class RegistryAgentServiceImpl implements RegistryAgentService {
 
         // change the key
         await this.#dbApi.put(`/registry/${agent.registryId}/agents/${agentId}`, {
-            key_hash: key
+            key_hash: hashAgentKey(key)
         }).then(() => { return; })
         .catch(err => { throw new DatabaseError(`Failed to update the registry agent`, err) });
 
@@ -152,6 +159,21 @@ export class RegistryAgentServiceImpl implements RegistryAgentService {
 
         // delete the agent
         await this.#dbApi.delete(`/registry/${agent.registryId}/agents/${agentId}`).catch(err => { throw new DatabaseError(`Failed to delete registry agent`, err); })
+    }
+
+    public async migrateUnhashedKeys(registryIds: number[]): Promise<number> {
+        let migrated = 0;
+        for (const registryId of registryIds) {
+            const agents = await this.getAgentsInRegistry(registryId);
+            for (const agent of agents) {
+                if (agent.keyHash.length !== UNHASHED_KEY_LENGTH) continue;
+                await this.#dbApi.put(`/registry/${registryId}/agents/${agent.id}`, {
+                    key_hash: hashAgentKey(agent.keyHash)
+                }).catch(err => { throw new DatabaseError(`Failed to hash the key of registry agent ${agent.id}`, err) });
+                migrated++;
+            }
+        }
+        return migrated;
     }
 
 }

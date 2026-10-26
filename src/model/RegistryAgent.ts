@@ -20,7 +20,8 @@ const RegistryAgentFromObjectSchema = z.object({
     registryId: z.number().positive(),
     name: z.string().max(255),
     createdAt: z.coerce.date(),
-    keyHash: z.string().length(128),
+    // 64-character SHA-256 hex digest, or a 128-character raw key not yet migrated by migrateUnhashedKeys
+    keyHash: z.string().refine(k => k.length === 64 || k.length === 128),
     createdByUserId: z.number().positive().optional()
 });
 
