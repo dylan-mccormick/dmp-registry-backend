@@ -92,7 +92,7 @@ export class RegistryWorkerServiceImpl implements RegistryWorkerService {
     }
 
     public async destroyRegistry(storageLocation: string): Promise<void> {
-        await rm(path.join(process.env.STORAGE_ROOT_LOCATION!, storageLocation), { recursive: true });
+        await rm(path.join(process.env.STORAGE_ROOT_LOCATION!, storageLocation), { recursive: true, force: true });
     }
 
     public async bulkStartWorkers(registries: Registry[]): Promise<void> {

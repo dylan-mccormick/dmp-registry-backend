@@ -145,7 +145,7 @@ export class RegistryLifecycleServiceImpl implements RegistryLifecycleService {
         await this.#registryWorkerService.destroyRegistry(registry.storageLocation);
 
         // Idempotent delete
-        this.#dbApi.delete(`/registry/${registryId}`).catch(err => {
+        await this.#dbApi.delete(`/registry/${registryId}`).catch(err => {
             console.error("Unknown database API error. ", err);
             throw new DatabaseError("Unknown error.");
         });
